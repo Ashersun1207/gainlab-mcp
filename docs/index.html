@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GainLab — Agent's Eyes for Financial Charts</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      background: #0d0d1a; 
+      color: #e0e0e0; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+    }
+    .header {
+      text-align: center;
+      padding: 40px 20px 20px;
+    }
+    .header h1 {
+      font-size: 2.5em;
+      background: linear-gradient(135deg, #00d4aa, #5b8ff9);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    .header .subtitle {
+      font-size: 1.2em;
+      color: #a0a0a0;
+      margin-bottom: 4px;
+    }
+    .header .tagline {
+      font-size: 0.95em;
+      color: #666;
+      font-style: italic;
+    }
+    .badge-row {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin: 16px 0;
+      flex-wrap: wrap;
+    }
+    .badge {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.8em;
+      font-weight: 600;
+    }
+    .badge.live { background: #00d4aa22; color: #00d4aa; border: 1px solid #00d4aa44; }
+    .badge.soon { background: #5b8ff922; color: #5b8ff9; border: 1px solid #5b8ff944; }
+    .badge.mcp { background: #ffc23322; color: #ffc233; border: 1px solid #ffc23344; }
+    .controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      padding: 16px;
+      flex-wrap: wrap;
+    }
+    select, button {
+      background: #1a1a2e;
+      color: #e0e0e0;
+      border: 1px solid #3d3d5c;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.9em;
+      cursor: pointer;
+    }
+    select:hover, button:hover { border-color: #00d4aa; }
+    button.primary {
+      background: #00d4aa;
+      color: #0d0d1a;
+      font-weight: 600;
+      border: none;
+    }
+    button.primary:hover { background: #00b894; }
+    #chart {
+      width: 90%;
+      max-width: 1000px;
+      height: 500px;
+      margin: 0 auto;
+    }
+    .status {
+      text-align: center;
+      padding: 8px;
+      color: #a0a0a0;
+      font-size: 0.85em;
+    }
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      max-width: 900px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+    .feature-card {
+      background: #1a1a2e;
+      border: 1px solid #2d2d44;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .feature-card .icon { font-size: 2em; margin-bottom: 8px; }
+    .feature-card h3 { color: #00d4aa; font-size: 0.95em; margin-bottom: 4px; }
+    .feature-card p { color: #888; font-size: 0.8em; }
+    .footer {
+      text-align: center;
+      padding: 30px;
+      color: #555;
+      font-size: 0.85em;
+    }
+    .footer a { color: #5b8ff9; text-decoration: none; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🦞 GainLab</h1>
+  <div class="subtitle">Agent's Eyes for Financial Charts</div>
+  <div class="tagline">Agent 会分析，但不会画图。GainLab 帮 Agent 画图。</div>
+  <div class="badge-row">
+    <span class="badge mcp">MCP Server</span>
+    <span class="badge live">Crypto ✅</span>
+    <span class="badge soon">US Stocks 🔜</span>
+    <span class="badge soon">A-Shares 🔜</span>
+    <span class="badge soon">Commodities 🔜</span>
+  </div>
+</div>
+
+<div class="controls">
+  <select id="symbol">
+    <option value="BTCUSDT">BTC/USDT</option>
+    <option value="ETHUSDT">ETH/USDT</option>
+    <option value="SOLUSDT">SOL/USDT</option>
+    <option value="BNBUSDT">BNB/USDT</option>
+    <option value="XRPUSDT">XRP/USDT</option>
+  </select>
+  <select id="timeframe">
+    <option value="1h">1H</option>
+    <option value="4h">4H</option>
+    <option value="1d" selected>1D</option>
+    <option value="1w">1W</option>
+  </select>
+  <select id="limit">
+    <option value="60">60 candles</option>
+    <option value="100" selected>100 candles</option>
+    <option value="200">200 candles</option>
+  </select>
+  <button class="primary" onclick="loadChart()">Load Chart</button>
+</div>
+
+<div id="chart"></div>
+<div class="status" id="status">Select a pair and click Load Chart</div>
+
+<div class="features">
+  <div class="feature-card">
+    <div class="icon">📊</div>
+    <h3>K-Line Charts</h3>
+    <p>Candlestick + Volume with dark theme</p>
+  </div>
+  <div class="feature-card">
+    <div class="icon">📈</div>
+    <h3>Multi-Asset Overlay</h3>
+    <p>Compare assets on one chart</p>
+  </div>
+  <div class="feature-card">
+    <div class="icon">🔧</div>
+    <h3>Technical Indicators</h3>
+    <p>MA, RSI, MACD, Bollinger</p>
+  </div>
+  <div class="feature-card">
+    <div class="icon">📋</div>
+    <h3>Fundamentals</h3>
+    <p>Revenue, P/E, margins</p>
+  </div>
+  <div class="feature-card">
+    <div class="icon">📅</div>
+    <h3>Financial Calendar</h3>
+    <p>Earnings, FOMC, unlocks</p>
+  </div>
+  <div class="feature-card">
+    <div class="icon">🔔</div>
+    <h3>Smart Alerts</h3>
+    <p>Price, event & indicator alerts</p>
+  </div>
+</div>
+
+<div class="footer">
+  <a href="https://github.com/Ashersun1207/gainlab-mcp">GitHub</a> · 
+  Built by Asher & 智慧卷卷 🦞 · 
+  Apache 2.0
+</div>
+
+<script>
+const UP = '#00d4aa', DOWN = '#ff4757', BG = '#1a1a2e', GRID = '#2d2d44', TEXT = '#e0e0e0', SUB = '#a0a0a0';
+const chart = echarts.init(document.getElementById('chart'));
+
+async function loadChart() {
+  const symbol = document.getElementById('symbol').value;
+  const tf = document.getElementById('timeframe').value;
+  const limit = document.getElementById('limit').value;
+  document.getElementById('status').textContent = `Loading ${symbol} ${tf}...`;
+
+  try {
+    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${tf}&limit=${limit}`;
+    const res = await fetch(url);
+    const raw = await res.json();
+
+    const dates = raw.map(k => {
+      const d = new Date(k[0]);
+      return tf.includes('m') || tf === '1h' || tf === '4h'
+        ? d.toLocaleString('en-US', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})
+        : d.toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'});
+    });
+    const ohlc = raw.map(k => [+k[1], +k[4], +k[3], +k[2]]);
+    const vols = raw.map(k => +k[5]);
+    const vColors = raw.map(k => +k[4] >= +k[1] ? UP+'80' : DOWN+'80');
+
+    chart.setOption({
+      backgroundColor: BG,
+      animation: false,
+      title: { text: `${symbol} — ${tf}`, left: 'center', textStyle: {color:TEXT, fontSize:16, fontWeight:'bold'} },
+      tooltip: { trigger:'axis', axisPointer:{type:'cross'}, backgroundColor:'#2d2d44', borderColor:'#3d3d5c', textStyle:{color:TEXT} },
+      grid: [
+        { left:'8%', right:'4%', top:'12%', height:'55%' },
+        { left:'8%', right:'4%', top:'72%', height:'18%' },
+      ],
+      xAxis: [
+        { type:'category', data:dates, gridIndex:0, axisLine:{lineStyle:{color:GRID}}, axisLabel:{color:SUB,fontSize:10}, splitLine:{show:false} },
+        { type:'category', data:dates, gridIndex:1, axisLine:{lineStyle:{color:GRID}}, axisLabel:{show:false}, splitLine:{show:false} },
+      ],
+      yAxis: [
+        { type:'value', gridIndex:0, splitLine:{lineStyle:{color:GRID}}, axisLabel:{color:SUB}, scale:true },
+        { type:'value', gridIndex:1, splitLine:{show:false}, axisLabel:{show:false}, axisLine:{show:false} },
+      ],
+      series: [
+        { name:'K', type:'candlestick', data:ohlc, xAxisIndex:0, yAxisIndex:0,
+          itemStyle: { color:UP, color0:DOWN, borderColor:UP, borderColor0:DOWN } },
+        { name:'Vol', type:'bar', data:vols.map((v,i) => ({value:v, itemStyle:{color:vColors[i]}})),
+          xAxisIndex:1, yAxisIndex:1 },
+      ],
+      dataZoom: [{ type:'inside', xAxisIndex:[0,1], start:0, end:100 }],
+    }, true);
+
+    const last = raw[raw.length-1];
+    const change = ((+last[4] - +last[1]) / +last[1] * 100).toFixed(2);
+    const arrow = change >= 0 ? '▲' : '▼';
+    document.getElementById('status').textContent = `${symbol} Last: ${(+last[4]).toLocaleString()} (${arrow}${change}%) · ${raw.length} candles · Powered by Binance API`;
+  } catch(e) {
+    document.getElementById('status').textContent = `Error: ${e.message}. If blocked, try a VPN.`;
+  }
+}
+
+window.addEventListener('resize', () => chart.resize());
+loadChart();
+</script>
+</body>
+</html>
