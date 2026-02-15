@@ -1,0 +1,43 @@
+{
+  "name": "@gainlab/mcp-server",
+  "version": "0.1.0",
+  "description": "GainLab MCP Server - Agent's Eyes for Financial Charts",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "gainlab-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "tsx --test tests/**/*.test.ts"
+  },
+  "keywords": [
+    "mcp",
+    "financial",
+    "charts",
+    "echarts",
+    "agent",
+    "ai",
+    "trading",
+    "crypto",
+    "stocks"
+  ],
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "canvas": "^3.2.1",
+    "echarts": "^6.0.0",
+    "undici": "^7.22.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
