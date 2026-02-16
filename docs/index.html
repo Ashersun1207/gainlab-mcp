@@ -190,7 +190,7 @@
 const U='#00d4aa',D='#ff4757',B='#0d0d1f',G='#1a1a35',T='#e8e8f0',S='#8888aa',P=['#00d4aa','#5b8ff9','#ff4757','#ffc233','#7c4dff'];
 const ch={};
 function ic(id){if(!ch[id]){ch[id]=echarts.init(document.getElementById(id));window.addEventListener('resize',()=>ch[id]?.resize())}return ch[id]}
-function sw(n,el){document.querySelectorAll('.tb').forEach(b=>b.classList.remove('on'));document.querySelectorAll('.pnl').forEach(p=>p.classList.remove('on'));el.classList.add('on');document.getElementById('p-'+n).classList.add('on');if(n==='kline'&&!ch['c-kline'])lkl();if(n==='vp'&&!ch['c-vp'])lvp();if(n==='indicators'&&!ch['c-indicators'])lind();if(n==='overlay'&&!ch['c-overlay'])lov();if(n==='fundamentals'&&!ch['c-fundamentals'])lfun();setTimeout(()=>{if(ch['c-'+n])ch['c-'+n].resize()},50)}
+function sw(n,el){document.querySelectorAll('.tb').forEach(b=>b.classList.remove('on'));document.querySelectorAll('.pnl').forEach(p=>p.classList.remove('on'));el.classList.add('on');document.getElementById('p-'+n).classList.add('on');if(n==='kline'&&!ch['c-kline'])lkl();if(n==='vp'&&!ch['c-vp'])lvp();if(n==='indicators'&&!ch['c-indicators'])lind();if(n==='overlay'&&!ch['c-overlay'])lov();if(n==='fundamentals'&&!ch['c-fundamentals'])lfun();if(n==='heatmap'&&!ch['c-heatmap'])lhm();if(n==='corr'&&!ch['c-corr'])lcr();setTimeout(()=>{if(ch['c-'+n])ch['c-'+n].resize()},50)}
 async function fb(s,i,l){return(await fetch(`https://api.binance.com/api/v3/klines?symbol=${s}&interval=${i}&limit=${l}`)).json()}
 function fd(ts,tf){const d=new Date(ts);return(tf.includes('m')||tf==='1h'||tf==='4h')?d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})}
 
