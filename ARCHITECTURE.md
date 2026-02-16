@@ -57,7 +57,9 @@ gainlab-mcp/
 │   └── sample-data.js        — 非加密市场预拉取数据（EODHD）
 ├── dist/                     — TypeScript 编译输出
 ├── scripts/
-│   └── check-docs.sh         — README ↔ 代码漂移检查（pre-commit hook）
+│   ├── check-all.sh          — 全项目 6 节质量检查（每日 cron + 手动）
+│   ├── check-docs.sh         — README ↔ 代码漂移检查（pre-commit hook）
+│   └── project-boot.sh       — 新会话认知恢复（进度/commit/文档新鲜度）
 └── .githooks/
     └── pre-commit            — 自动跑 check-docs.sh
 ```

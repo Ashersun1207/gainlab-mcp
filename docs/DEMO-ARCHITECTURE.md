@@ -8,8 +8,10 @@ _修改展示页前必读。每次改完同步更新此文档。_
 
 ```
 docs/
-├── index.html      — 单文件展示页（HTML + CSS + JS，~730行）
-└── sample-data.js  — 非加密市场预拉取数据（EODHD，~55KB）
+├── index.html             — 单文件展示页（HTML + CSS + JS，~753行）
+├── sample-data.js         — 非加密市场预拉取数据（EODHD，~55KB）
+├── DEMO-ARCHITECTURE.md   — 本文件（展示页结构文档）
+└── CHANGELOG.md           — 展示页变更日志（14 次 commit 历史）
 ```
 
 ## 数据流
