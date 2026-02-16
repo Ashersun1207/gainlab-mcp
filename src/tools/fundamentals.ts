@@ -1,7 +1,9 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { getFundamentals, getCashFlow, getKeyMetrics } from "../data/index.js";
+import { getFundamentals, getCashFlow, getKeyMetrics, getDCF, getAnalystEstimates } from "../data/index.js";
 import { buildFundamentalsOption } from "../render/charts/fundamentals.js";
+import { buildDCFGaugeOption } from "../render/charts/dcf-gauge.js";
+import { buildEstimatesOption } from "../render/charts/analyst-estimates.js";
 import { renderToPNG, renderToHTML } from "../render/engine.js";
 import type { FundamentalData } from "../data/types.js";
 
@@ -23,6 +25,9 @@ const FundamentalsSchema = {
   period: z.enum(["annual", "quarter"]).default("annual").describe("Reporting period"),
   years: z.number().min(1).max(10).default(5).describe("Number of years/quarters of historical data"),
   format: z.enum(["interactive", "image"]).default("interactive").describe("Output format: interactive HTML or PNG image"),
+  mode: z.enum(["standard", "dcf", "estimates"]).default("standard").describe(
+    "Visualization mode: standard=bar charts, dcf=DCF valuation gauge, estimates=analyst forecast chart"
+  ),
 };
 
 // Metric categories for smart data fetching
@@ -43,6 +48,160 @@ const AVAILABLE_METRICS = new Set([
   ...KEY_METRICS,
 ]);
 
+// DCF mode handler
+async function handleDCFMode(params: any): Promise<any> {
+  const symbol = params.symbols[0];
+  const market = params.market;
+  
+  if (market !== "us_stock") {
+    return {
+      content: [{
+        type: "text" as const,
+        text: "Error: DCF mode is only available for US stocks",
+      }],
+      isError: true,
+    };
+  }
+  
+  try {
+    // Fetch DCF data
+    const dcfData = await getDCF(symbol, market);
+    
+    // Try to fetch analyst target (optional)
+    let analystTarget: number | undefined;
+    try {
+      const estimates = await getAnalystEstimates(symbol, market, "annual", 1);
+      // Get average target price from revenue/eps estimates if available
+      // For now, we'll skip this and implement later if needed
+      analystTarget = undefined;
+    } catch {
+      analystTarget = undefined;
+    }
+    
+    // Build DCF gauge chart
+    const option = buildDCFGaugeOption({
+      symbol: dcfData.symbol,
+      dcfValue: dcfData.dcf,
+      stockPrice: dcfData.stockPrice,
+      analystTarget,
+    });
+    
+    // Calculate margin of safety
+    const marginOfSafety = ((dcfData.dcf - dcfData.stockPrice) / dcfData.dcf) * 100;
+    const isUndervalued = marginOfSafety > 0;
+    
+    const summaryText = `${symbol} DCF Analysis — Intrinsic Value: $${dcfData.dcf.toFixed(2)} | Stock Price: $${dcfData.stockPrice.toFixed(2)} | ${isUndervalued ? "Discount" : "Premium"}: ${Math.abs(marginOfSafety).toFixed(1)}% (${isUndervalued ? "undervalued" : "overvalued"})`;
+    
+    // Render
+    if (params.format === "image") {
+      const pngBuffer = await renderToPNG(option);
+      return {
+        content: [
+          { type: "text" as const, text: summaryText },
+          {
+            type: "image" as const,
+            data: pngBuffer.toString("base64"),
+            mimeType: "image/png",
+          },
+        ],
+      };
+    } else {
+      const html = renderToHTML(option);
+      return {
+        content: [
+          { type: "text" as const, text: `📊 ${summaryText}` },
+          {
+            type: "resource" as const,
+            resource: {
+              uri: `gainlab://chart/dcf/${symbol}`,
+              mimeType: "text/html",
+              text: html,
+            },
+          },
+        ],
+      };
+    }
+  } catch (error: any) {
+    return {
+      content: [{ type: "text" as const, text: `Error: ${error.message}` }],
+      isError: true,
+    };
+  }
+}
+
+// Estimates mode handler
+async function handleEstimatesMode(params: any): Promise<any> {
+  const symbol = params.symbols[0];
+  const market = params.market;
+  
+  if (market !== "us_stock") {
+    return {
+      content: [{
+        type: "text" as const,
+        text: "Error: Analyst estimates are only available for US stocks",
+      }],
+      isError: true,
+    };
+  }
+  
+  try {
+    // Determine which metric to show (default to revenue)
+    const metric = params.metrics.includes("eps") ? "eps" : "revenue";
+    
+    // Fetch historical actuals
+    const actuals = await getFundamentals(symbol, market, params.period, params.years);
+    
+    // Fetch forward estimates
+    const estimates = await getAnalystEstimates(symbol, market, params.period, 3);
+    
+    // Build estimates chart
+    const option = buildEstimatesOption({
+      symbol,
+      actuals,
+      estimates,
+      metric: metric as "revenue" | "eps",
+    });
+    
+    const metricLabel = metric === "revenue" ? "Revenue" : "EPS";
+    const summaryText = `${symbol} ${metricLabel} — ${actuals.length} periods actual, ${estimates.length} periods estimated`;
+    
+    // Render
+    if (params.format === "image") {
+      const pngBuffer = await renderToPNG(option);
+      return {
+        content: [
+          { type: "text" as const, text: summaryText },
+          {
+            type: "image" as const,
+            data: pngBuffer.toString("base64"),
+            mimeType: "image/png",
+          },
+        ],
+      };
+    } else {
+      const html = renderToHTML(option);
+      return {
+        content: [
+          { type: "text" as const, text: `📊 ${summaryText}` },
+          {
+            type: "resource" as const,
+            resource: {
+              uri: `gainlab://chart/estimates/${symbol}`,
+              mimeType: "text/html",
+              text: html,
+            },
+          },
+        ],
+      };
+    }
+  } catch (error: any) {
+    return {
+      content: [{ type: "text" as const, text: `Error: ${error.message}` }],
+      isError: true,
+    };
+  }
+}
+
 export function registerFundamentalsTool(server: McpServer) {
   server.tool(
     "gainlab_fundamentals",
@@ -50,6 +209,13 @@ export function registerFundamentalsTool(server: McpServer) {
     FundamentalsSchema,
     async (params) => {
       try {
+        // Route to special modes
+        if (params.mode === "dcf") {
+          return await handleDCFMode(params);
+        } else if (params.mode === "estimates") {
+          return await handleEstimatesMode(params);
+        }
+        
         // Validate market
         if (params.market !== "us_stock" && params.market !== "a_stock") {
           return {
