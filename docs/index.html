@@ -188,6 +188,9 @@ async function lvp(){const s=$('vp-s').value,t=$('vp-t').value,l=+$('vp-l').valu
 try{const r=await fb(s,t,l),dt=r.map(k=>fd(k[0],t)),oh=r.map(k=>[+k[1],+k[4],+k[3],+k[2]]),v=r.map(k=>+k[5]),vc=r.map(k=>+k[4]>=+k[1]?U+'80':D+'80');
 const vp=calcVP(r,rows);const maxV=Math.max(...vp.rows.map(r=>r.vol));
 const prLabels=vp.rows.map(r=>r.pMid.toFixed(2));
+// Calculate y-axis range from VP rows for alignment
+const vpPriceMin=vp.rows[0].pMin,vpPriceMax=vp.rows[vp.rows.length-1].pMax;
+const priceMargin=(vpPriceMax-vpPriceMin)*0.02;
 const ch=ic('c-vp');
 ch.setOption({backgroundColor:B,animation:false,title:{text:`${s} — ${t} Volume Profile`,left:'center',textStyle:{color:T,fontSize:15,fontWeight:700}},
 tooltip:{trigger:'axis',axisPointer:{type:'cross'},backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T}},
@@ -198,7 +201,7 @@ xAxis:[
 {type:'value',gridIndex:2,axisLine:{lineStyle:{color:G}},axisLabel:{show:false},splitLine:{show:false},max:maxV*1.1}
 ],
 yAxis:[
-{type:'value',gridIndex:0,splitLine:{lineStyle:{color:G}},axisLabel:{color:S},scale:true},
+{type:'value',gridIndex:0,splitLine:{lineStyle:{color:G}},axisLabel:{color:S},min:vpPriceMin-priceMargin,max:vpPriceMax+priceMargin},
 {type:'value',gridIndex:1,splitLine:{show:false},axisLabel:{show:false},axisLine:{show:false}},
 {type:'category',gridIndex:2,data:prLabels,axisLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:8},splitLine:{show:false}}
 ],
@@ -243,7 +246,7 @@ function boll(c,p=20){const mid=ma(c,p),up=[],lo=[];for(let i=0;i<c.length;i++){
 async function lind(){const s=$('in-s').value,sel=Array.from($('in-i').selectedOptions).map(o=>o.value);$('in-st').textContent='Loading...';
 try{const r=await fb(s,'1d',120),dt=r.map(k=>fd(k[0],'1d')),cl=r.map(k=>+k[4]),oh=r.map(k=>[+k[1],+k[4],+k[3],+k[2]]),v=r.map(k=>+k[5]),vc=r.map(k=>+k[4]>=+k[1]?U+'80':D+'80');
 const hasRSI=sel.includes('RSI'),hasMACD=sel.includes('MACD'),hasATR=sel.includes('ATR');let subN=0;if(hasRSI)subN++;if(hasMACD)subN++;if(hasATR)subN++;
-const mainH=subN===0?52:subN===1?40:34,volT=10+mainH+2,volH=8;
+const mainH=subN===0?52:subN===1?40:subN===2?34:28,volT=10+mainH+2,volH=8;
 const grids=[{left:'8%',right:'4%',top:'8%',height:mainH+'%'},{left:'8%',right:'4%',top:(10+mainH)+'%',height:volH+'%'}];
 const xA=[{type:'category',data:dt,gridIndex:0,axisLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:9},splitLine:{show:false}},{type:'category',data:dt,gridIndex:1,axisLine:{lineStyle:{color:G}},axisLabel:{show:false},splitLine:{show:false}}];
 const yA=[{type:'value',gridIndex:0,splitLine:{lineStyle:{color:G}},axisLabel:{color:S},scale:true},{type:'value',gridIndex:1,splitLine:{show:false},axisLabel:{show:false},axisLine:{show:false}}];
