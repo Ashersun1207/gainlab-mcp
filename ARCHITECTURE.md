@@ -28,7 +28,18 @@ gainlab-mcp/
 │   │   └── wrb-scoring.ts    — gainlab_wrb_scoring（WRB/HG + Pro 信号）
 │   ├── render/               — ECharts 渲染引擎
 │   │   ├── engine.ts         — 双模式渲染（HTML interactive + PNG server-side）
-│   │   └── themes.ts         — 暗色主题定义
+│   │   ├── themes.ts         — 暗色主题定义
+│   │   └── charts/           — 各工具的 ECharts option 构建器
+│   │       ├── kline.ts              — K线图 option
+│   │       ├── indicators.ts         — 技术指标多面板 option
+│   │       ├── overlay.ts            — 多资产叠加 option
+│   │       ├── fundamentals.ts       — 基本面柱状图 option
+│   │       ├── dcf-gauge.ts          — DCF 估值仪表盘 option
+│   │       ├── analyst-estimates.ts  — 分析师预期 EPS 图 option
+│   │       ├── volume-profile.ts     — VP + K线叠加 option
+│   │       ├── sector-treemap.ts     — 板块热力图 treemap option
+│   │       ├── correlation-matrix.ts — 相关性矩阵热力图 option
+│   │       └── wrb-scoring.ts        — WRB/HG 标注图 option
 │   └── utils/                — 纯函数工具库
 │       ├── ta.ts             — 技术指标计算（MA/EMA/RSI/MACD/BOLL/KDJ/VWAP/ATR）
 │       ├── volume-profile.ts — VP 计算（POC/VAH/VAL/价格区间分配）
