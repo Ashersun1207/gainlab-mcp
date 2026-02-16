@@ -4,6 +4,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { registerKlineTool } from "./tools/kline.js";
 import { registerIndicatorsTool } from "./tools/indicators.js";
+import { registerOverlayTool } from "./tools/overlay.js";
+import { registerFundamentalsTool } from "./tools/fundamentals.js";
 
 const server = new McpServer({
   name: "gainlab",
@@ -18,6 +20,8 @@ const server = new McpServer({
 // Register tools
 registerKlineTool(server);
 registerIndicatorsTool(server);
+registerOverlayTool(server);
+registerFundamentalsTool(server);
 
 // Start server
 async function main() {
