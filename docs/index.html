@@ -50,75 +50,83 @@
     .mkt option{color:var(--txt);background:var(--bg)}
     .badge{display:inline-block;font-size:.62em;font-family:var(--m);padding:1px 6px;border-radius:3px;vertical-align:middle;margin-left:4px}
     .badge.live{background:#00d4aa20;color:var(--up)}.badge.sample{background:#ffc23320;color:var(--gold)}
+    .lang-sw{position:absolute;top:16px;right:20px;display:flex;gap:4px;z-index:100}
+    .lb{background:0;border:1px solid var(--bdr);color:var(--dim);padding:4px 10px;border-radius:5px;font-size:.78em;cursor:pointer;transition:.2s}
+    .lb:hover{background:#1a1a3a;border-color:var(--up)}
+    .lb.on{background:var(--card);border-color:var(--bdr-a);color:var(--up)}
     @media(max-width:640px){.logo{font-size:2.2em}.tb{padding:7px 10px;font-size:.76em}.cw{height:340px!important}.feats{grid-template-columns:1fr 1fr}}
   </style>
 </head>
 <body>
 
 <div class="hero">
+  <div class="lang-sw">
+    <button class="lb on" onclick="setLang('zh')">中文</button>
+    <button class="lb" onclick="setLang('en')">EN</button>
+  </div>
   <div class="logo">🦞 <span class="g">Gain</span>Lab</div>
-  <div class="sub">Agent's Eyes for Financial Charts</div>
-  <div class="tag">Agents can analyze, but they can't draw charts. GainLab gives agents eyes.</div>
+  <div class="sub" data-i18n="subtitle">Agent 的金融图表之眼</div>
+  <div class="tag" data-i18n="tagline">Agent 会分析，但不会画图。GainLab 帮 Agent 画图。</div>
   <div class="stats">
-    <div class="s"><span class="d g"></span><span class="n">7</span><span class="l">tools</span></div>
-    <div class="s"><span class="d b"></span><span class="n">4</span><span class="l">markets</span></div>
-    <div class="s"><span class="d y"></span><span class="n">275</span><span class="l">tests</span></div>
+    <div class="s"><span class="d g"></span><span class="n">7</span><span class="l" data-i18n="stat_tools">工具</span></div>
+    <div class="s"><span class="d b"></span><span class="n">4</span><span class="l" data-i18n="stat_markets">市场</span></div>
+    <div class="s"><span class="d y"></span><span class="n">275</span><span class="l" data-i18n="stat_tests">测试</span></div>
   </div>
 </div>
 
 <div class="tnav">
-  <button class="tb on" onclick="sw('kline',this)">📊 K-Line</button>
-  <button class="tb" onclick="sw('vp',this)">📊 Volume Profile</button>
-  <button class="tb" onclick="sw('indicators',this)">🔧 Indicators</button>
-  <button class="tb" onclick="sw('overlay',this)">📈 Overlay</button>
-  <button class="tb" onclick="sw('fundamentals',this)">📋 Fundamentals</button>
-  <button class="tb" onclick="sw('wrb',this)">🎯 WRB Scoring</button>
-  <button class="tb" onclick="sw('heatmap',this)">🔥 Heatmap</button>
-  <button class="tb" onclick="sw('corr',this)">🔗 Correlation</button>
+  <button class="tb on" onclick="sw('kline',this)" data-i18n="tab_kline">📊 K线</button>
+  <button class="tb" onclick="sw('vp',this)" data-i18n="tab_vp">📊 成交量分布</button>
+  <button class="tb" onclick="sw('indicators',this)" data-i18n="tab_indicators">🔧 技术指标</button>
+  <button class="tb" onclick="sw('overlay',this)" data-i18n="tab_overlay">📈 叠加对比</button>
+  <button class="tb" onclick="sw('fundamentals',this)" data-i18n="tab_fundamentals">📋 基本面</button>
+  <button class="tb" onclick="sw('wrb',this)" data-i18n="tab_wrb">🎯 WRB评分</button>
+  <button class="tb" onclick="sw('heatmap',this)" data-i18n="tab_heatmap">🔥 热力图</button>
+  <button class="tb" onclick="sw('corr',this)" data-i18n="tab_corr">🔗 相关性</button>
 </div>
 
 <div class="demo">
   <div class="pnl on" id="p-kline">
     <div class="ctl">
-      <select class="mkt" id="kl-m" onchange="umkt('kl')"><option value="crypto">🔗 Crypto</option><option value="us_stock">🇺🇸 US Stock</option><option value="a_stock">🇨🇳 A-Share</option><option value="commodity">🥇 Gold/Silver</option><option value="index">📊 Index</option></select>
+      <select class="mkt mkt-sel" id="kl-m" onchange="umkt('kl')"></select>
       <select id="kl-s"></select>
       <select id="kl-t"><option value="1h">1H</option><option value="4h">4H</option><option value="1d" selected>1D</option><option value="1w">1W</option></select>
       <select id="kl-l"><option>60</option><option selected>100</option><option>200</option></select>
-      <button class="go" onclick="lkl()">Load</button><div class="sp"></div><span class="st" id="kl-st">—</span>
+      <button class="go" onclick="lkl()" data-i18n="btn_load">加载</button><div class="sp"></div><span class="st" id="kl-st">—</span>
     </div>
     <div class="cw" id="c-kline"></div>
   </div>
 
   <div class="pnl" id="p-vp">
     <div class="ctl">
-      <select class="mkt" id="vp-m" onchange="umkt('vp')"><option value="crypto">🔗 Crypto</option><option value="us_stock">🇺🇸 US Stock</option><option value="a_stock">🇨🇳 A-Share</option><option value="commodity">🥇 Gold/Silver</option><option value="index">📊 Index</option></select>
+      <select class="mkt mkt-sel" id="vp-m" onchange="umkt('vp')"></select>
       <select id="vp-s"></select>
       <select id="vp-t"><option value="1h">1H</option><option value="4h">4H</option><option value="1d" selected>1D</option></select>
       <select id="vp-l"><option>60</option><option selected>120</option><option>200</option></select>
       <select id="vp-r"><option value="12">12 rows</option><option value="24" selected>24 rows</option><option value="48">48 rows</option></select>
-      <button class="go" onclick="lvp()">Load</button><div class="sp"></div><span class="st" id="vp-st">—</span>
+      <button class="go" onclick="lvp()" data-i18n="btn_load">加载</button><div class="sp"></div><span class="st" id="vp-st">—</span>
     </div>
     <div class="cw" id="c-vp" style="height:520px"></div>
   </div>
 
   <div class="pnl" id="p-indicators">
     <div class="ctl">
-      <select class="mkt" id="in-m" onchange="umkt('in')"><option value="crypto">🔗 Crypto</option><option value="us_stock">🇺🇸 US Stock</option><option value="a_stock">🇨🇳 A-Share</option><option value="commodity">🥇 Gold/Silver</option><option value="index">📊 Index</option></select>
+      <select class="mkt mkt-sel" id="in-m" onchange="umkt('in')"></select>
       <select id="in-s"></select>
       <select id="in-i" multiple size="4" style="min-width:130px"><option value="MA" selected>MA</option><option value="VWAP">VWAP</option><option value="RSI" selected>RSI</option><option value="MACD">MACD</option><option value="BOLL">Bollinger</option><option value="ATR">ATR</option></select>
-      <button class="go" onclick="lind()">Load</button><div class="sp"></div><span class="st" id="in-st">—</span>
+      <button class="go" onclick="lind()" data-i18n="btn_load">加载</button><div class="sp"></div><span class="st" id="in-st">—</span>
     </div>
     <div class="cw" id="c-indicators" style="height:560px"></div>
   </div>
 
   <div class="pnl" id="p-overlay">
     <div class="ctl">
-      <select class="mkt" id="ov-m" onchange="umkt('ov')"><option value="crypto">🔗 Crypto</option><option value="us_stock">🇺🇸 US Stock</option><option value="a_stock">🇨🇳 A-Share</option><option value="commodity">🥇 Gold/Silver</option><option value="index">📊 Index</option></select>
+      <select class="mkt mkt-sel" id="ov-m" onchange="umkt('ov')"></select>
       <select id="ov-1"></select>
       <span style="color:var(--mut);font-size:.8em">vs</span>
       <select id="ov-2"></select>
       <select id="ov-d"><option value="90">3M</option><option value="180" selected>6M</option><option value="365">1Y</option></select>
-      <button class="go" onclick="lov()">Compare</button><div class="sp"></div><span class="st" id="ov-st">—</span>
+      <button class="go" onclick="lov()" data-i18n="btn_compare">对比</button><div class="sp"></div><span class="st" id="ov-st">—</span>
     </div>
     <div class="cw" id="c-overlay"></div>
   </div>
@@ -127,18 +135,18 @@
     <div class="ctl">
       <select id="fn-m"><option value="standard" selected>Standard</option><option value="dcf">DCF Gauge</option><option value="estimates">Analyst Estimates</option></select>
       <select id="fn-s" style="display:none"><option>AAPL</option><option>MSFT</option><option>GOOGL</option><option>TSLA</option><option>AMZN</option><option>NVDA</option></select>
-      <button class="go" onclick="lfun()">Load</button><div class="sp"></div><span class="st" id="fn-st">Sample data — API keys required for live</span>
+      <button class="go" onclick="lfun()" data-i18n="btn_load">加载</button><div class="sp"></div><span class="st" id="fn-st">Sample data — API keys required for live</span>
     </div>
     <div class="cw" id="c-fundamentals"></div>
   </div>
 
   <div class="pnl" id="p-wrb">
     <div class="ctl">
-      <select class="mkt" id="wrb-m" onchange="umkt('wrb')"><option value="crypto">🔗 Crypto</option><option value="us_stock">🇺🇸 US Stock</option><option value="a_stock">🇨🇳 A-Share</option><option value="commodity">🥇 Gold/Silver</option></select>
+      <select class="mkt mkt-sel" id="wrb-m" onchange="umkt('wrb')"></select>
       <select id="wrb-s"></select>
       <select id="wrb-t"><option value="1h">1H</option><option value="4h">4H</option><option value="1d" selected>1D</option></select>
       <select id="wrb-l"><option>100</option><option selected>150</option><option>200</option></select>
-      <button class="go" onclick="lwrb()">Analyze</button><div class="sp"></div><span class="st" id="wrb-st">—</span>
+      <button class="go" onclick="lwrb()" data-i18n="btn_analyze">分析</button><div class="sp"></div><span class="st" id="wrb-st">—</span>
     </div>
     <div class="cw" id="c-wrb" style="height:540px"></div>
   </div>
@@ -148,7 +156,7 @@
       <select id="hm-m"><option value="crypto" selected>Crypto</option></select>
       <select id="hm-l"><option value="30">Top 30</option><option value="50" selected>Top 50</option><option value="100">Top 100</option></select>
       <select id="hm-v"><option value="1000000" selected>Vol > $1M</option><option value="5000000">Vol > $5M</option><option value="10000000">Vol > $10M</option></select>
-      <button class="go" onclick="lhm()">Load</button><div class="sp"></div><span class="st" id="hm-st">Live from Binance — no API key needed</span>
+      <button class="go" onclick="lhm()" data-i18n="btn_load">加载</button><div class="sp"></div><span class="st" id="hm-st">Live from Binance — no API key needed</span>
     </div>
     <div class="cw" id="c-heatmap" style="height:580px"></div>
   </div>
@@ -161,14 +169,14 @@
       <select id="cr-a3"></select>
       <select id="cr-a4"></select>
       <select id="cr-d"><option value="60">60 days</option><option value="90" selected>90 days</option><option value="180">180 days</option></select>
-      <button class="go" onclick="lcr()">Calculate</button><div class="sp"></div><span class="st" id="cr-st">Pearson correlation from daily returns</span>
+      <button class="go" onclick="lcr()" data-i18n="btn_calculate">计算</button><div class="sp"></div><span class="st" id="cr-st">Pearson correlation from daily returns</span>
     </div>
     <div class="cw" id="c-corr" style="height:520px"></div>
   </div>
 </div>
 
 <div class="code-s">
-  <h3>Use with any MCP Client</h3>
+  <h3 data-i18n="code_title">支持任意 MCP 客户端</h3>
   <div class="cb"><span class="c">// Ask your AI agent:</span>
 "Draw a BTC daily chart with RSI and MACD"
 "Analyze AAPL with WRB/HG scoring"
@@ -205,7 +213,7 @@
 </div>
 
 <div class="arch-s">
-  <h3>Architecture</h3>
+  <h3 data-i18n="arch_title">架构</h3>
   <div class="arch">Agent (Claude / ChatGPT / OpenClaw / custom)
   │ MCP Protocol
   ▼
@@ -218,13 +226,104 @@
 
 <div class="ftr">
   <div class="lk"><a href="https://github.com/Ashersun1207/gainlab-mcp">GitHub</a><a href="https://github.com/Ashersun1207/gainlab-mcp#quick-start">Docs</a><a href="https://github.com/Ashersun1207/gainlab-mcp/blob/main/LICENSE">Apache 2.0</a></div>
-  Built by <a href="https://github.com/Ashersun1207">Asher</a> &amp; 智慧卷卷 🦞
+  <span data-i18n="footer">由 Asher 和 智慧卷卷 🦞 构建</span>
 </div>
 
 <script>
 const U='#00d4aa',D='#ff4757',B='#0d0d1f',G='#1a1a35',T='#e8e8f0',S='#8888aa',P=['#00d4aa','#5b8ff9','#ff4757','#ffc233','#7c4dff'];
 const ch={};
 function ic(id){if(!ch[id]){ch[id]=echarts.init(document.getElementById(id));window.addEventListener('resize',()=>ch[id]?.resize())}return ch[id]}
+
+// I18N system
+const I18N = {
+  zh: {
+    subtitle: 'Agent 的金融图表之眼',
+    tagline: 'Agent 会分析，但不会画图。GainLab 帮 Agent 画图。',
+    stat_tools: '工具',
+    stat_markets: '市场',
+    stat_tests: '测试',
+    tab_kline: '📊 K线',
+    tab_vp: '📊 成交量分布',
+    tab_indicators: '🔧 技术指标',
+    tab_overlay: '📈 叠加对比',
+    tab_fundamentals: '📋 基本面',
+    tab_wrb: '🎯 WRB评分',
+    tab_heatmap: '🔥 热力图',
+    tab_corr: '🔗 相关性',
+    mkt_crypto: '🔗 加密货币',
+    mkt_us_stock: '🇺🇸 美股',
+    mkt_a_stock: '🇨🇳 A股',
+    mkt_commodity: '🥇 贵金属',
+    mkt_index: '📊 指数',
+    btn_load: '加载',
+    btn_analyze: '分析',
+    btn_compare: '对比',
+    btn_calculate: '计算',
+    wrb_bull: '看涨',
+    wrb_bear: '看跌',
+    code_title: '支持任意 MCP 客户端',
+    arch_title: '架构',
+    footer: '由 Asher 和 智慧卷卷 🦞 构建'
+  },
+  en: {
+    subtitle: "Agent's Eyes for Financial Charts",
+    tagline: "Agents can analyze, but they can't draw charts. GainLab gives agents eyes.",
+    stat_tools: 'tools',
+    stat_markets: 'markets',
+    stat_tests: 'tests',
+    tab_kline: '📊 K-Line',
+    tab_vp: '📊 Volume Profile',
+    tab_indicators: '🔧 Indicators',
+    tab_overlay: '📈 Overlay',
+    tab_fundamentals: '📋 Fundamentals',
+    tab_wrb: '🎯 WRB Scoring',
+    tab_heatmap: '🔥 Heatmap',
+    tab_corr: '🔗 Correlation',
+    mkt_crypto: '🔗 Crypto',
+    mkt_us_stock: '🇺🇸 US Stock',
+    mkt_a_stock: '🇨🇳 A-Share',
+    mkt_commodity: '🥇 Gold/Silver',
+    mkt_index: '📊 Index',
+    btn_load: 'Load',
+    btn_analyze: 'Analyze',
+    btn_compare: 'Compare',
+    btn_calculate: 'Calculate',
+    wrb_bull: 'Bull',
+    wrb_bear: 'Bear',
+    code_title: 'Use with any MCP Client',
+    arch_title: 'Architecture',
+    footer: 'Built by Asher & 智慧卷卷 🦞'
+  }
+};
+let curLang = 'zh';
+function t(key) { return I18N[curLang]?.[key] || I18N.en[key] || key; }
+function setLang(lang) {
+  curLang = lang;
+  // Update button states
+  document.querySelectorAll('.lb').forEach(btn => {
+    btn.classList.toggle('on', btn.textContent.includes(lang === 'zh' ? '中文' : 'EN'));
+  });
+  // Update all data-i18n elements
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    el.textContent = t(key);
+  });
+  // Update market selectors
+  updateMarketSelectors();
+}
+function updateMarketSelectors() {
+  document.querySelectorAll('.mkt-sel').forEach(sel => {
+    const curVal = sel.value || 'crypto';
+    sel.innerHTML = `
+      <option value="crypto">${t('mkt_crypto')}</option>
+      <option value="us_stock">${t('mkt_us_stock')}</option>
+      <option value="a_stock">${t('mkt_a_stock')}</option>
+      <option value="commodity">${t('mkt_commodity')}</option>
+      ${sel.id !== 'wrb-m' ? `<option value="index">${t('mkt_index')}</option>` : ''}
+    `;
+    sel.value = curVal;
+  });
+}
 
 // Market → symbol mapping
 const MKT_SYMS={
@@ -294,41 +393,53 @@ while(cv<tgt&&(lo>0||hi<rows-1)){const bv=lo>0?vr[lo-1].vol:-1,av=hi<rows-1?vr[h
 if(bv>=av&&bv>=0){lo--;cv+=vr[lo].vol}else if(av>=0){hi++;cv+=vr[hi].vol}else break}
 return{rows:vr,poc:vr[pi].pMid,vah:vr[hi].pMax,val:vr[lo].pMin,pocIdx:pi,vaLo:lo,vaHi:hi}}
 
-async function lvp(){const s=$('vp-s').value,t=$('vp-t').value,l=+$('vp-l').value,rows=+$('vp-r').value;$('vp-st').textContent='Loading...';
+async function lvp(){const s=$('vp-s').value,t=$('vp-t').value,l=+$('vp-l').value,rows=+$('vp-r').value,m=$('vp-m')?.value||'crypto';$('vp-st').textContent='Loading...';
 try{const r=await fdata(s,t,l),dt=r.map(k=>fd(k[0],t)),oh=r.map(k=>[+k[1],+k[4],+k[3],+k[2]]),v=r.map(k=>+k[5]),vc=r.map(k=>+k[4]>=+k[1]?U+'80':D+'80');
 const vp=calcVP(r,rows);const maxV=Math.max(...vp.rows.map(r=>r.vol));
-const prLabels=vp.rows.map(r=>r.pMid.toFixed(2));
-// Calculate y-axis range from VP rows for alignment
+const dispName=s.endsWith('USDT')?s:MKT_SYMS[m]?.find(x=>x.v===s)?.l||s;
+// Calculate price range
 const vpPriceMin=vp.rows[0].pMin,vpPriceMax=vp.rows[vp.rows.length-1].pMax;
 const priceMargin=(vpPriceMax-vpPriceMin)*0.02;
+// Build horizontal VP bars (index is row, value is volume at that price level)
+const vpBars=vp.rows.map((row,i)=>({
+  name:row.pMid.toFixed(2),
+  value:[row.vol,row.pMid],
+  buy:row.bv,
+  sell:row.sv,
+  isPOC:i===vp.pocIdx
+}));
 const ch=ic('c-vp');
-ch.setOption({backgroundColor:B,animation:false,title:{text:`${s} — ${t} Volume Profile`,left:'center',textStyle:{color:T,fontSize:15,fontWeight:700}},
+ch.setOption({backgroundColor:B,animation:false,title:{text:`${dispName} — ${t} ${t('tab_vp')}`,left:'center',textStyle:{color:T,fontSize:15,fontWeight:700}},
 tooltip:{trigger:'axis',axisPointer:{type:'cross'},backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T}},
-grid:[{left:'6%',right:'30%',top:'8%',height:'55%'},{left:'6%',right:'30%',top:'67%',height:'15%'},{left:'72%',right:'2%',top:'8%',height:'74%'}],
+grid:[
+{left:'6%',right:'28%',top:'8%',height:'72%'},
+{left:'74%',right:'2%',top:'8%',height:'72%'}
+],
 xAxis:[
 {type:'category',data:dt,gridIndex:0,axisLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:9},splitLine:{show:false}},
-{type:'category',data:dt,gridIndex:1,axisLine:{lineStyle:{color:G}},axisLabel:{show:false},splitLine:{show:false}},
-{type:'value',gridIndex:2,axisLine:{lineStyle:{color:G}},axisLabel:{show:false},splitLine:{show:false},max:maxV*1.1}
+{type:'value',gridIndex:1,axisLine:{lineStyle:{color:G}},axisLabel:{show:false},splitLine:{show:false},max:maxV*1.1}
 ],
 yAxis:[
 {type:'value',gridIndex:0,splitLine:{lineStyle:{color:G}},axisLabel:{color:S},min:vpPriceMin-priceMargin,max:vpPriceMax+priceMargin},
-{type:'value',gridIndex:1,splitLine:{show:false},axisLabel:{show:false},axisLine:{show:false}},
-{type:'category',gridIndex:2,data:prLabels,axisLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:8},splitLine:{show:false}}
+{type:'value',gridIndex:1,splitLine:{lineStyle:{color:G,lineWidth:0.5}},axisLabel:{color:S,fontSize:8},min:vpPriceMin-priceMargin,max:vpPriceMax+priceMargin}
 ],
 series:[
 {type:'candlestick',data:oh,xAxisIndex:0,yAxisIndex:0,itemStyle:{color:U,color0:D,borderColor:U,borderColor0:D},
-markLine:{silent:true,symbol:'none',lineStyle:{width:1.5},data:[
-{yAxis:vp.poc,lineStyle:{color:'#fff',type:'solid'},label:{formatter:'POC '+vp.poc.toFixed(2),color:'#fff',fontSize:10}},
-{yAxis:vp.vah,lineStyle:{color:'#ffc233',type:'dashed'},label:{formatter:'VAH '+vp.vah.toFixed(2),color:'#ffc233',fontSize:10}},
-{yAxis:vp.val,lineStyle:{color:'#ffc233',type:'dashed'},label:{formatter:'VAL '+vp.val.toFixed(2),color:'#ffc233',fontSize:10}}
+markLine:{silent:true,symbol:'none',lineStyle:{width:2},data:[
+{yAxis:vp.poc,lineStyle:{color:'#ff4757',type:'solid'},label:{formatter:'POC '+vp.poc.toFixed(2),color:'#ff4757',fontSize:11,fontWeight:'bold',position:'end'}},
+{yAxis:vp.vah,lineStyle:{color:'#ffc233',type:'dashed'},label:{formatter:'VAH '+vp.vah.toFixed(2),color:'#ffc233',fontSize:10,position:'end'}},
+{yAxis:vp.val,lineStyle:{color:'#ffc233',type:'dashed'},label:{formatter:'VAL '+vp.val.toFixed(2),color:'#ffc233',fontSize:10,position:'end'}}
 ]},
-markArea:{silent:true,data:[[{yAxis:vp.val,itemStyle:{color:'#ffc23312'}},{yAxis:vp.vah}]]}
+markArea:{silent:true,data:[[{yAxis:vp.val,itemStyle:{color:'#ffc23315'}},{yAxis:vp.vah}]]}
 },
-{type:'bar',data:v.map((x,i)=>({value:x,itemStyle:{color:vc[i]}})),xAxisIndex:1,yAxisIndex:1},
-{name:'Buy Vol',type:'bar',stack:'vp',data:vp.rows.map((r,i)=>({value:r.bv,itemStyle:{color:i===vp.pocIdx?'#fff':U,borderColor:i===vp.pocIdx?'#fff':'transparent',borderWidth:i===vp.pocIdx?2:0}})),xAxisIndex:2,yAxisIndex:2,barWidth:'60%'},
-{name:'Sell Vol',type:'bar',stack:'vp',data:vp.rows.map((r,i)=>({value:r.sv,itemStyle:{color:i===vp.pocIdx?'#ccc':D,borderColor:i===vp.pocIdx?'#fff':'transparent',borderWidth:i===vp.pocIdx?2:0}})),xAxisIndex:2,yAxisIndex:2,barWidth:'60%'}
+{name:'Buy Vol',type:'bar',data:vp.rows.map((r,i)=>[r.bv,r.pMid]),xAxisIndex:1,yAxisIndex:1,
+itemStyle:{color:v=>{const idx=vp.rows.findIndex(r=>r.pMid===v.data[1]);return idx===vp.pocIdx?'#ffffff':U}},
+barWidth:'45%',barCategoryGap:'20%'},
+{name:'Sell Vol',type:'bar',data:vp.rows.map((r,i)=>[-r.sv,r.pMid]),xAxisIndex:1,yAxisIndex:1,
+itemStyle:{color:v=>{const idx=vp.rows.findIndex(r=>r.pMid===v.data[1]);return idx===vp.pocIdx?'#dddddd':D}},
+barWidth:'45%',barCategoryGap:'20%'}
 ],
-dataZoom:[{type:'inside',xAxisIndex:[0,1]}]
+dataZoom:[{type:'inside',xAxisIndex:[0]}]
 },true);
 $('vp-st').textContent=`POC: ${vp.poc.toFixed(2)} | VAH: ${vp.vah.toFixed(2)} | VAL: ${vp.val.toFixed(2)} · ${r.length} candles`
 }catch(e){$('vp-st').textContent='Error: '+e.message}}
@@ -537,19 +648,28 @@ gaps.push({idx:i,bull,top:Math.max(gapTop,gapBot),bot:Math.min(gapTop,gapBot),fi
 }}}
 return{wrb,gaps,bars}}
 
-async function lwrb(){const s=$('wrb-s').value,t=$('wrb-t').value,l=+$('wrb-l').value;$('wrb-st').textContent='Analyzing...';
+async function lwrb(){const s=$('wrb-s').value,t=$('wrb-t').value,l=+$('wrb-l').value,m=$('wrb-m')?.value||'crypto';$('wrb-st').textContent='Analyzing...';
 try{const r=await fdata(s,t,l),dt=r.map(k=>fd(k[0],t)),oh=r.map(k=>[+k[1],+k[4],+k[3],+k[2]]),v=r.map(k=>+k[5]),vc=r.map(k=>+k[4]>=+k[1]?U+'80':D+'80');
 const w=detectWRB(r);
-// WRB triangles above candle highs using coord:[xIndex, yValue]
-const wrbMark=w.wrb.map(x=>({coord:[x.idx,w.bars[x.idx].h*1.002],symbol:x.bull?'triangle':'path://M0,0L5,8L10,0Z',symbolSize:10,symbolRotate:x.bull?0:180,itemStyle:{color:x.bull?U:D}}));
-// Gap zones as markArea
-const gapAreas=w.gaps.filter(g=>!g.filled).map(g=>[{xAxis:dt[g.idx],yAxis:g.top,itemStyle:{color:g.pro?'#ffc23330':'#5b8ff920'}},{xAxis:dt[Math.min(g.idx+30,dt.length-1)],yAxis:g.bot}]);
-// Pro signals as separate scatter series with proper [x,y] data
+// WRB diamonds with labels
+const wrbMark=w.wrb.map(x=>({
+coord:[x.idx,x.bull?w.bars[x.idx].h*1.008:w.bars[x.idx].l*0.992],
+symbol:'diamond',
+symbolSize:10,
+itemStyle:{color:'#7c4dff'},
+label:{show:true,formatter:t(x.bull?'wrb_bull':'wrb_bear'),color:x.bull?U:D,fontSize:9,fontWeight:'bold',position:x.bull?'top':'bottom',offset:[0,x.bull?-2:2]}
+}));
+// Gap zones with color differentiation
+const gapAreas=w.gaps.filter(g=>!g.filled).map(g=>{
+const color=g.pro?'#ffc23335':(g.bull?'#00d4aa25':'#ff475725');
+return[{xAxis:dt[g.idx],yAxis:g.top,itemStyle:{color}},{xAxis:dt[Math.min(g.idx+30,dt.length-1)],yAxis:g.bot}]
+});
+// Pro signals
 const proData=w.gaps.filter(g=>g.pro&&!g.filled).map(g=>[dt[g.idx],g.bull?w.bars[g.idx].l*0.996:w.bars[g.idx].h*1.004]);
 
-const dispName=s.endsWith('USDT')?s:MKT_SYMS[($('wrb-m')?.value)||'crypto']?.find(x=>x.v===s)?.l||s;
+const dispName=s.endsWith('USDT')?s:MKT_SYMS[m]?.find(x=>x.v===s)?.l||s;
 ic('c-wrb').setOption({backgroundColor:B,animation:false,
-title:{text:`${dispName} — ${t} WRB/HG Analysis`,left:'center',textStyle:{color:T,fontSize:15,fontWeight:700}},
+title:{text:`${dispName} — ${t} WRB/HG ${t('btn_analyze')}`,left:'center',textStyle:{color:T,fontSize:15,fontWeight:700}},
 tooltip:{trigger:'axis',axisPointer:{type:'cross'},backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T}},
 legend:{data:['Pro Signal'],bottom:4,right:16,textStyle:{color:S,fontSize:10}},
 grid:[{left:'8%',right:'4%',top:'10%',height:'54%'},{left:'8%',right:'4%',top:'68%',height:'14%'}],
@@ -559,7 +679,7 @@ yAxis:[{type:'value',gridIndex:0,splitLine:{lineStyle:{color:G}},axisLabel:{colo
 {type:'value',gridIndex:1,splitLine:{show:false},axisLabel:{show:false},axisLine:{show:false}}],
 series:[
 {type:'candlestick',data:oh,itemStyle:{color:U,color0:D,borderColor:U,borderColor0:D},
-markPoint:{data:wrbMark,label:{show:false},animation:false},
+markPoint:{data:wrbMark,animation:false},
 markArea:{silent:true,data:gapAreas}},
 {name:'Pro Signal',type:'scatter',data:proData,symbol:'diamond',symbolSize:14,itemStyle:{color:'#ffc233',borderColor:'#fff',borderWidth:2},z:10},
 {type:'bar',data:v.map((x,i)=>({value:x,itemStyle:{color:vc[i]}})),xAxisIndex:1,yAxisIndex:1}
@@ -575,6 +695,8 @@ function $(id){return document.getElementById(id)}
 
 // Fill all symbol selects on init
 function initSelects(){
+// Update market selectors first
+updateMarketSelectors();
 // Single-symbol tabs: kl, vp, in, wrb
 ['kl','vp','in','wrb'].forEach(p=>{
   const m=$(p+'-m')?.value||'crypto';
@@ -596,6 +718,8 @@ const crDefs=['BTCUSDT','ETHUSDT','SOLUSDT',''];
 });
 }
 initSelects();
+// Apply initial language
+setLang('zh');
 // Auto-load first tab
 lkl();
 </script>
