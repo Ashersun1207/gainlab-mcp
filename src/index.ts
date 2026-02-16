@@ -8,6 +8,7 @@ import { registerOverlayTool } from "./tools/overlay.js";
 import { registerFundamentalsTool } from "./tools/fundamentals.js";
 import { registerVolumeProfileTool } from "./tools/volume-profile.js";
 import { registerHeatmapTool } from "./tools/heatmap.js";
+import { registerWRBScoringTool } from "./tools/wrb-scoring.js";
 
 const server = new McpServer({
   name: "gainlab",
@@ -26,6 +27,7 @@ registerOverlayTool(server);
 registerFundamentalsTool(server);
 registerVolumeProfileTool(server);
 registerHeatmapTool(server);
+registerWRBScoringTool(server);
 
 // Start server
 async function main() {
