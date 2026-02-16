@@ -8,9 +8,12 @@ import {
   calculateMACD,
   calculateBOLL,
   calculateKDJ,
+  calculateVWAP,
+  calculateAnchoredVWAP,
+  calculateATR,
 } from "../../utils/ta.js";
 
-type IndicatorType = "MA" | "EMA" | "RSI" | "MACD" | "BOLL" | "KDJ" | "VOL";
+type IndicatorType = "MA" | "EMA" | "RSI" | "MACD" | "BOLL" | "KDJ" | "VOL" | "VWAP" | "ATR";
 
 interface IndicatorsParams {
   data: OHLCV[];
@@ -18,10 +21,11 @@ interface IndicatorsParams {
   timeframe: string;
   indicators: IndicatorType[];
   maPeriods?: number[];
+  anchorDate?: string;
 }
 
 export function buildIndicatorsOption(params: IndicatorsParams): EChartsOption {
-  const { data, symbol, timeframe, indicators, maPeriods = [7, 25, 99] } = params;
+  const { data, symbol, timeframe, indicators, maPeriods = [7, 25, 99], anchorDate } = params;
 
   // Format dates for x-axis
   const dates = data.map(d => {
@@ -40,8 +44,8 @@ export function buildIndicatorsOption(params: IndicatorsParams): EChartsOption {
   const volumeColors = data.map(d => d.close >= d.open ? UP_COLOR : DOWN_COLOR);
 
   // Determine which indicators need separate panels
-  const overlayIndicators = indicators.filter(i => ["MA", "EMA", "BOLL"].includes(i));
-  const subIndicators = indicators.filter(i => ["RSI", "MACD", "KDJ"].includes(i));
+  const overlayIndicators = indicators.filter(i => ["MA", "EMA", "BOLL", "VWAP"].includes(i));
+  const subIndicators = indicators.filter(i => ["RSI", "MACD", "KDJ", "ATR"].includes(i));
   
   // Calculate grid layout
   // Main panel (K-line): 45%
@@ -235,6 +239,45 @@ export function buildIndicatorsOption(params: IndicatorsParams): EChartsOption {
     );
   }
   
+  if (overlayIndicators.includes("VWAP")) {
+    const vwap = calculateVWAP(highs, lows, closes, volumes);
+    series.push({
+      name: "VWAP",
+      type: "line",
+      data: vwap,
+      xAxisIndex: 0,
+      yAxisIndex: 0,
+      smooth: true,
+      lineStyle: { width: 1.5, color: "#ffffff" },
+      showSymbol: false,
+    });
+
+    // Anchored VWAP if anchor_date is provided
+    if (anchorDate) {
+      const anchorTs = new Date(anchorDate).getTime();
+      let anchorIndex = -1;
+      for (let i = 0; i < data.length; i++) {
+        if (data[i].timestamp >= anchorTs) {
+          anchorIndex = i;
+          break;
+        }
+      }
+      if (anchorIndex >= 0) {
+        const avwap = calculateAnchoredVWAP(highs, lows, closes, volumes, anchorIndex);
+        series.push({
+          name: "Anchored VWAP",
+          type: "line",
+          data: avwap,
+          xAxisIndex: 0,
+          yAxisIndex: 0,
+          smooth: true,
+          lineStyle: { width: 1.5, color: "#ffc233", type: "dashed" },
+          showSymbol: false,
+        });
+      }
+    }
+  }
+  
   // Add sub-indicator series
   let subPanelIndex = 2; // Start after main and volume panels
   
@@ -384,6 +427,25 @@ export function buildIndicatorsOption(params: IndicatorsParams): EChartsOption {
         silent: true,
       }
     );
+    
+    subPanelIndex++;
+  }
+  
+  if (subIndicators.includes("ATR")) {
+    const atr = calculateATR(highs, lows, closes, 14);
+    const atrXAxisIndex = subPanelIndex;
+    const atrYAxisIndex = subPanelIndex;
+    
+    series.push({
+      name: "ATR(14)",
+      type: "line",
+      data: atr,
+      xAxisIndex: atrXAxisIndex,
+      yAxisIndex: atrYAxisIndex,
+      smooth: true,
+      lineStyle: { width: 1.5, color: colors[3] },
+      showSymbol: false,
+    });
     
     subPanelIndex++;
   }

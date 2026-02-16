@@ -1,5 +1,6 @@
 // Technical Analysis Indicators
 // Pure math functions - no external dependencies, no API calls
+// Includes: MA, EMA, RSI, MACD, BOLL, KDJ, VWAP, Anchored VWAP, ATR
 
 /**
  * Calculate Simple Moving Average (SMA/MA)
@@ -277,4 +278,137 @@ export function calculateKDJ(
   }
   
   return { k, d, j };
+}
+
+/**
+ * Calculate VWAP (Volume Weighted Average Price)
+ * VWAP = Cumulative(TypicalPrice * Volume) / Cumulative(Volume)
+ * TypicalPrice = (High + Low + Close) / 3
+ * @param highs Array of high prices
+ * @param lows Array of low prices
+ * @param closes Array of closing prices
+ * @param volumes Array of volumes
+ * @returns Array with VWAP values (null only if volume is zero cumulatively)
+ */
+export function calculateVWAP(
+  highs: number[],
+  lows: number[],
+  closes: number[],
+  volumes: number[]
+): (number | null)[] {
+  const result: (number | null)[] = [];
+  let cumulativeTPV = 0; // cumulative (TP * Volume)
+  let cumulativeVol = 0; // cumulative Volume
+
+  for (let i = 0; i < closes.length; i++) {
+    const tp = (highs[i] + lows[i] + closes[i]) / 3;
+    cumulativeTPV += tp * volumes[i];
+    cumulativeVol += volumes[i];
+
+    if (cumulativeVol === 0) {
+      result.push(null);
+    } else {
+      result.push(cumulativeTPV / cumulativeVol);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Calculate Anchored VWAP — VWAP starting from a specific index
+ * @param highs Array of high prices
+ * @param lows Array of low prices
+ * @param closes Array of closing prices
+ * @param volumes Array of volumes
+ * @param anchorIndex Index to start VWAP calculation from
+ * @returns Array with Anchored VWAP values (null before anchorIndex)
+ */
+export function calculateAnchoredVWAP(
+  highs: number[],
+  lows: number[],
+  closes: number[],
+  volumes: number[],
+  anchorIndex: number
+): (number | null)[] {
+  const result: (number | null)[] = [];
+  let cumulativeTPV = 0;
+  let cumulativeVol = 0;
+
+  for (let i = 0; i < closes.length; i++) {
+    if (i < anchorIndex) {
+      result.push(null);
+      continue;
+    }
+    const tp = (highs[i] + lows[i] + closes[i]) / 3;
+    cumulativeTPV += tp * volumes[i];
+    cumulativeVol += volumes[i];
+
+    if (cumulativeVol === 0) {
+      result.push(null);
+    } else {
+      result.push(cumulativeTPV / cumulativeVol);
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Calculate ATR (Average True Range)
+ * True Range = max(H-L, |H-prevC|, |L-prevC|)
+ * ATR = SMA of True Range over period (first value), then Wilder smoothing
+ * @param highs Array of high prices
+ * @param lows Array of low prices
+ * @param closes Array of closing prices
+ * @param period ATR period (default 14)
+ * @returns Array with ATR values (null for initial periods)
+ */
+export function calculateATR(
+  highs: number[],
+  lows: number[],
+  closes: number[],
+  period: number = 14
+): (number | null)[] {
+  const result: (number | null)[] = [];
+
+  if (closes.length === 0) {
+    return result;
+  }
+
+  // Calculate True Range
+  const trueRanges: number[] = [];
+  for (let i = 0; i < closes.length; i++) {
+    if (i === 0) {
+      // First bar: TR = High - Low
+      trueRanges.push(highs[i] - lows[i]);
+    } else {
+      const hl = highs[i] - lows[i];
+      const hpc = Math.abs(highs[i] - closes[i - 1]);
+      const lpc = Math.abs(lows[i] - closes[i - 1]);
+      trueRanges.push(Math.max(hl, hpc, lpc));
+    }
+  }
+
+  // Calculate ATR using Wilder smoothing
+  let atr: number | null = null;
+  for (let i = 0; i < trueRanges.length; i++) {
+    if (i < period - 1) {
+      result.push(null);
+    } else if (i === period - 1) {
+      // First ATR = simple average of first `period` true ranges
+      let sum = 0;
+      for (let j = 0; j < period; j++) {
+        sum += trueRanges[i - j];
+      }
+      atr = sum / period;
+      result.push(atr);
+    } else {
+      // Wilder smoothing: ATR = (prevATR * (period-1) + TR) / period
+      atr = (atr! * (period - 1) + trueRanges[i]) / period;
+      result.push(atr);
+    }
+  }
+
+  return result;
 }

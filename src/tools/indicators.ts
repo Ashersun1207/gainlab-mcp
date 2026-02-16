@@ -8,12 +8,13 @@ const IndicatorsSchema = {
   symbol: z.string().describe('Trading pair or ticker symbol'),
   market: z.enum(["crypto", "us_stock", "a_stock", "commodity"]).describe("Market type"),
   timeframe: z.enum(["1m", "5m", "15m", "1h", "4h", "1d", "1w", "1M"]).default("1d"),
-  indicators: z.array(z.enum(["MA", "EMA", "RSI", "MACD", "BOLL", "KDJ", "VOL"]))
+  indicators: z.array(z.enum(["MA", "EMA", "RSI", "MACD", "BOLL", "KDJ", "VOL", "VWAP", "ATR"]))
     .min(1)
     .describe("Technical indicators to display (VOL is always shown)"),
   ma_periods: z.array(z.number().min(1).max(200))
     .default([7, 25, 99])
     .describe("Periods for MA/EMA indicators (default: [7, 25, 99])"),
+  anchor_date: z.string().optional().describe("Anchor date for Anchored VWAP (YYYY-MM-DD). Only used when VWAP is selected."),
   limit: z.number().min(10).max(500).default(100),
   format: z.enum(["interactive", "image"]).default("interactive"),
 };
@@ -63,6 +64,7 @@ export function registerIndicatorsTool(server: McpServer) {
           timeframe: params.timeframe,
           indicators,
           maPeriods: params.ma_periods,
+          anchorDate: params.anchor_date,
         });
         
         if (params.format === "image") {
