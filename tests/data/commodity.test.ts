@@ -63,6 +63,15 @@ test("getCommodityKlines - with .FOREX suffix", async () => {
   assert.ok(result.length <= 3, "Should respect limit");
 });
 
+test("getCommodityKlines - .COMM suffix auto-converts to .FOREX", async () => {
+  const result = await getCommodityKlines("XAUUSD.COMM", 3);
+  
+  console.log(`✓ Fetched ${result.length} XAUUSD.COMM → .FOREX klines`);
+  
+  assert.ok(result.length > 0, "Should return data with .COMM suffix");
+  assert.ok(result[0].close > 1000, "Should be gold price data");
+});
+
 test("getCommodityKlines - error handling (no API key)", async () => {
   const originalKey = process.env.EODHD_API_KEY;
   delete process.env.EODHD_API_KEY;

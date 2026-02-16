@@ -52,8 +52,16 @@ export async function getCommodityKlines(
   const apiKey = getApiKey();
   const { from, to } = getLimitDateRange(limit);
   
-  // EODHD commodity symbols (gold/silver) use .FOREX suffix
-  const eodhSymbol = symbol.includes(".") ? symbol : `${symbol}.FOREX`;
+  // EODHD precious metals are under FOREX exchange (XAUUSD.FOREX, XAGUSD.FOREX)
+  // Accept bare symbols, .COMM (legacy), or .FOREX
+  let eodhSymbol: string;
+  if (symbol.endsWith(".COMM") || symbol.endsWith(".comm")) {
+    eodhSymbol = symbol.replace(/\.COMM$/i, ".FOREX");
+  } else if (symbol.includes(".")) {
+    eodhSymbol = symbol;
+  } else {
+    eodhSymbol = `${symbol}.FOREX`;
+  }
   
   const url = `${EODHD_BASE_URL}/eod/${eodhSymbol}?api_token=${apiKey}&fmt=json&from=${from}&to=${to}`;
   
