@@ -45,7 +45,7 @@
     .arch{background:var(--card);border:1px solid var(--bdr);border-radius:12px;padding:22px;font-family:var(--m);font-size:.76em;line-height:1.8;color:var(--dim);white-space:pre;overflow-x:auto}
     .ftr{text-align:center;padding:48px 20px 28px;color:var(--mut);font-size:.82em}
     .ftr a{color:var(--acc);text-decoration:none}.ftr a:hover{text-decoration:underline}.ftr .lk{margin-bottom:8px}.ftr .lk a{margin:0 10px}
-    @media(max-width:640px){.logo{font-size:2.2em}.tb{padding:7px 10px;font-size:.76em}.cw{height:340px}.feats{grid-template-columns:1fr 1fr}}
+    @media(max-width:640px){.logo{font-size:2.2em}.tb{padding:7px 10px;font-size:.76em}.cw{height:340px!important}.feats{grid-template-columns:1fr 1fr}}
   </style>
 </head>
 <body>
@@ -343,6 +343,7 @@ $('hm-st').textContent=`${items.length} tokens · ${sm.size} sectors · live fro
 // CORRELATION MATRIX
 async function lcr(){$('cr-st').textContent='Calculating...';
 try{const syms=[...new Set([$('cr-a1').value,$('cr-a2').value,$('cr-a3').value].concat($('cr-a4').value?[$('cr-a4').value]:[]))];
+if(syms.length<2){$('cr-st').textContent='⚠️ Select at least 2 different assets';return}
 const days=+$('cr-d').value;const names=syms.map(s=>cBase(s));
 // Fetch daily klines for all
 const all=await Promise.all(syms.map(s=>fb(s,'1d',days)));
