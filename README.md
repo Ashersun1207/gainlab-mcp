@@ -11,14 +11,14 @@
 
 <p align="center">
   <a href="https://ashersun1207.github.io/gainlab-mcp/">Live Demo</a> •
-  <a href="#tools">6 Tools</a> •
+  <a href="#tools">7 Tools</a> •
   <a href="#markets">4 Markets</a> •
   <a href="#quick-start">Quick Start</a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/tools-6%20available-00d4aa" alt="Tools" />
-  <img src="https://img.shields.io/badge/tests-255%20passing-00d4aa" alt="Tests" />
+  <img src="https://img.shields.io/badge/tools-7%20available-00d4aa" alt="Tools" />
+  <img src="https://img.shields.io/badge/tests-275%20passing-00d4aa" alt="Tests" />
   <img src="https://img.shields.io/badge/markets-crypto%20%7C%20US%20%7C%20A--shares%20%7C%20gold-5b8ff9" alt="Markets" />
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License" />
 </p>
@@ -42,9 +42,10 @@ GainLab: fetches data → normalizes → renders overlay chart → returns inter
 | `gainlab_kline` | Candlestick charts with volume | ✅ Live |
 | `gainlab_indicators` | Technical indicators (MA/EMA/RSI/MACD/BOLL/KDJ/VWAP/ATR) | ✅ Live |
 | `gainlab_overlay` | Multi-asset comparison (2-6 assets, normalized) | ✅ Live |
-| `gainlab_fundamentals` | Revenue, margins, EPS — peer comparison | ✅ Live |
+| `gainlab_fundamentals` | Financials, DCF valuation, analyst estimates (17 metrics) | ✅ Live |
 | `gainlab_volume_profile` | Volume-at-price distribution with POC, VAH, VAL | ✅ Live |
 | `gainlab_heatmap` | Sector treemap + asset correlation matrix | ✅ Live |
+| `gainlab_wrb_scoring` | WRB/Hidden Gap analysis with Pro signal detection | ✅ Live |
 
 ## Markets
 
@@ -141,13 +142,35 @@ Supported indicators: `MA`, `EMA`, `RSI`, `MACD`, `BOLL`, `KDJ`, `VWAP`, `ATR` (
 
 ### `gainlab_fundamentals`
 
+**Standard mode** — bar charts:
 ```json
 {
   "symbols": ["AAPL", "MSFT", "GOOGL"],
   "market": "us_stock",
-  "metrics": ["revenue", "net_income", "eps"],
+  "metrics": ["revenue", "free_cash_flow", "roe"],
   "period": "annual",
   "years": 5
+}
+```
+
+Supported metrics: `revenue`, `net_income`, `gross_margin`, `operating_margin`, `eps`, `ebitda`, `operating_cash_flow`, `free_cash_flow`, `capex`, `pe_ratio`, `pb_ratio`, `ev_ebitda`, `roe`, `roa`, `profit_margin`, `current_ratio`, `dividend_yield`.
+
+**DCF mode** — valuation gauge:
+```json
+{
+  "symbols": ["AAPL"],
+  "market": "us_stock",
+  "mode": "dcf"
+}
+```
+
+**Estimates mode** — actual vs analyst forecast:
+```json
+{
+  "symbols": ["AAPL"],
+  "market": "us_stock",
+  "mode": "estimates",
+  "metrics": ["eps"]
 }
 ```
 
@@ -195,11 +218,28 @@ Shows POC (Point of Control), VAH (Value Area High), VAL (Value Area Low), and b
 }
 ```
 
+### `gainlab_wrb_scoring`
+
+```json
+{
+  "symbol": "BTCUSDT",
+  "market": "crypto",
+  "timeframe": "1d",
+  "limit": 200,
+  "lookback_period": 5,
+  "sensitivity": 1.5,
+  "gap_extension": "stopLoss",
+  "format": "interactive"
+}
+```
+
+Detects Wide Range Bars (WRB) and Hidden Gaps (HG) based on the HG_PRO system. Marks high-quality "Pro" setups. Gap extension modes: `none` (strict gap), `stopLoss` (extends to WRB range), `both` (full WRB range).
+
 ## Project Structure
 
 ```
 src/
-├── index.ts                  # MCP Server entry point (6 tools registered)
+├── index.ts                  # MCP Server entry point (7 tools registered)
 ├── data/                     # Data layer (one file per market)
 │   ├── types.ts              #   Shared interfaces (OHLCV, FundamentalData)
 │   ├── index.ts              #   Router (dispatches by market type)
@@ -218,14 +258,18 @@ src/
 │       ├── fundamentals.ts   #     Grouped bar + peer comparison
 │       ├── volume-profile.ts #     VP with POC/VAH/VAL markers
 │       ├── sector-treemap.ts #     Finviz-style treemap
-│       └── correlation-matrix.ts #  Heatmap grid
+│       ├── correlation-matrix.ts #  Heatmap grid
+│       ├── wrb-scoring.ts    #     WRB/HG K-line with gap overlays
+│       ├── dcf-gauge.ts      #     DCF valuation semicircle gauge
+│       └── analyst-estimates.ts #  Actual vs forecast bars
 ├── tools/                    # MCP tool definitions (one per tool)
 │   ├── kline.ts
 │   ├── indicators.ts
 │   ├── overlay.ts
-│   ├── fundamentals.ts
+│   ├── fundamentals.ts       #     Standard + DCF + estimates modes
 │   ├── volume-profile.ts
-│   └── heatmap.ts
+│   ├── heatmap.ts
+│   └── wrb-scoring.ts
 └── utils/
     ├── fetch.ts              # Proxy-aware HTTP client
     ├── ta.ts                 # Technical indicators (MA/EMA/RSI/MACD/BOLL/KDJ/VWAP/ATR)
@@ -253,7 +297,7 @@ src/
 │            @gainlab/mcp-server                   │
 │                                                  │
 │  Tools ──→ Data Layer ──→ Render Layer ──→ Output│
-│  (6 tools)  (4 markets)   (ECharts)    (HTML/PNG)│
+│  (7 tools)  (4 markets)   (ECharts)    (HTML/PNG)│
 └──────────────────────────────────────────────────┘
 ```
 
@@ -276,10 +320,10 @@ Three-layer design (no framework lock-in):
 ## Testing
 
 ```bash
-pnpm test  # 255 tests across 52 suites
+pnpm test  # 275 tests across 57 suites
 ```
 
-Tests cover: all 6 tools, all 4 data markets, chart generation, technical indicators (9 types), volume profile math, correlation computation, crypto sector classification, rendering engine.
+Tests cover: all 7 tools, all 4 data markets, chart generation, technical indicators (9 types), volume profile math, WRB/HG detection, correlation computation, crypto sector classification, DCF gauge, analyst estimates, rendering engine.
 
 ## Roadmap
 
@@ -287,7 +331,7 @@ Tests cover: all 6 tools, all 4 data markets, chart generation, technical indica
 - [x] **Phase 2** — 4 markets + Indicators + Overlay + Fundamentals
 - [x] **Phase 2.5a** — Volume Profile (POC/VAH/VAL) + VWAP/ATR
 - [x] **Phase 2.5b** — Sector Heatmap + Correlation Matrix
-- [ ] **Phase 2.5c** — DCF valuation + WRB_HG scoring
+- [x] **Phase 2.5c** — DCF valuation + WRB_HG scoring + Fundamentals 17 metrics
 - [ ] **Phase 3** — npm publish + multi-market demo + Smithery marketplace
 
 ## License

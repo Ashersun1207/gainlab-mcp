@@ -386,7 +386,7 @@ export async function getUSStockKeyMetrics(
         debtToEbitda: item.netDebtToEBITDA ?? null,
         earningsYield: item.earningsYield ?? null,
         freeCashFlowYield: item.freeCashFlowYield ?? null,
-        dividendYield: item.dividendYield ?? matchingRatio?.priceToEarningsRatio ? 1 / matchingRatio.priceToEarningsRatio : null,
+        dividendYield: item.dividendYield ?? null,
         peRatio: matchingRatio?.priceToEarningsRatio ?? null,
         pbRatio: matchingRatio?.priceToBookRatio ?? null,
         psRatio: matchingRatio?.priceToSalesRatio ?? null,
