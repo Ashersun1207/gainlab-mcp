@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,9 +7,9 @@
   <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
   <script src="sample-data.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
-    :root{--bg:#08081a;--bg2:#0d0d1f;--card:#12122b;--bdr:#1e1e3d;--bdr-a:#00d4aa55;--up:#00d4aa;--dn:#ff4757;--acc:#5b8ff9;--gold:#ffc233;--purp:#7c4dff;--txt:#e8e8f0;--dim:#8888aa;--mut:#555577;--grid:#1a1a35;--f:'DM Sans',sans-serif;--m:'JetBrains Mono',monospace}
+    :root{--bg:#08081a;--bg2:#0d0d1f;--card:#12122b;--bdr:#1e1e3d;--bdr-a:#00d4aa55;--up:#00d4aa;--dn:#ff4757;--acc:#5b8ff9;--gold:#ffc233;--purp:#7c4dff;--txt:#e8e8f0;--dim:#8888aa;--mut:#555577;--grid:#1a1a35;--f:'DM Sans','Noto Sans SC',sans-serif;--m:'JetBrains Mono',monospace}
     *{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--txt);font-family:var(--f);min-height:100vh}
     .hero{text-align:center;padding:56px 20px 36px;position:relative}
     .hero::before{content:'';position:absolute;top:-40%;left:50%;transform:translateX(-50%);width:700px;height:700px;background:radial-gradient(ellipse,#00d4aa08,transparent 70%);pointer-events:none}
@@ -113,7 +113,7 @@
 
   <div class="pnl" id="p-overlay">
     <div class="ctl">
-      <select class="mkt" id="ov-m" onchange="umkt('ov')"><option value="crypto">🔗 Crypto</option><option value="us_stock">🇺🇸 US Stock</option><option value="index">📊 Index</option></select>
+      <select class="mkt" id="ov-m" onchange="umkt('ov')"><option value="crypto">🔗 Crypto</option><option value="us_stock">🇺🇸 US Stock</option><option value="a_stock">🇨🇳 A-Share</option><option value="commodity">🥇 Gold/Silver</option><option value="index">📊 Index</option></select>
       <select id="ov-1"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option></select>
       <span style="color:var(--mut);font-size:.8em">vs</span>
       <select id="ov-2"><option>ETHUSDT</option><option>BTCUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option></select>
@@ -237,13 +237,16 @@ index:[{v:'SPY',l:'S&P 500'},{v:'QQQ',l:'NASDAQ'}]
 
 // Update symbol select when market changes
 function umkt(prefix){
-const m=$(prefix+'-m').value, sel=$(prefix+'-s');
+const m=$(prefix+'-m').value;
 const syms=MKT_SYMS[m]||MKT_SYMS.crypto;
-sel.innerHTML=syms.map(s=>`<option value="${s.v}">${s.l}</option>`).join('');
-// For overlay, update both selects
 if(prefix==='ov'){
-  const sel2=$('ov-2');
+  // Overlay has ov-1 and ov-2 instead of ov-s
+  const sel1=$('ov-1'), sel2=$('ov-2');
+  sel1.innerHTML=syms.map((s,i)=>`<option value="${s.v}"${i===0?' selected':''}>${s.l}</option>`).join('');
   sel2.innerHTML=syms.map((s,i)=>`<option value="${s.v}"${i===1?' selected':''}>${s.l}</option>`).join('');
+}else{
+  const sel=$(prefix+'-s');
+  sel.innerHTML=syms.map(s=>`<option value="${s.v}">${s.l}</option>`).join('');
 }}
 
 // Correlation cross-market mode
@@ -537,17 +540,18 @@ return{wrb,gaps,bars}}
 async function lwrb(){const s=$('wrb-s').value,t=$('wrb-t').value,l=+$('wrb-l').value;$('wrb-st').textContent='Analyzing...';
 try{const r=await fdata(s,t,l),dt=r.map(k=>fd(k[0],t)),oh=r.map(k=>[+k[1],+k[4],+k[3],+k[2]]),v=r.map(k=>+k[5]),vc=r.map(k=>+k[4]>=+k[1]?U+'80':D+'80');
 const w=detectWRB(r);
-// Mark WRB candles
-const wrbMark=w.wrb.map(x=>({xAxis:dt[x.idx],yAxis:w.bars[x.idx].h,symbol:'triangle',symbolSize:8,itemStyle:{color:x.bull?U:D}}));
-// Mark area for active gap zones
-const gapAreas=w.gaps.filter(g=>!g.filled).map(g=>[{xAxis:dt[g.idx],yAxis:g.top,itemStyle:{color:g.pro?'#ffc23325':'#5b8ff918'}},{xAxis:dt[Math.min(g.idx+30,dt.length-1)],yAxis:g.bot}]);
-// Pro signals — diamond markers
-const proMarks=w.gaps.filter(g=>g.pro&&!g.filled).map(g=>({xAxis:dt[g.idx],yAxis:g.bull?w.bars[g.idx].l*0.998:w.bars[g.idx].h*1.002,symbol:'diamond',symbolSize:12,itemStyle:{color:'#ffc233',borderColor:'#fff',borderWidth:1}}));
+// WRB triangles above candle highs using coord:[xIndex, yValue]
+const wrbMark=w.wrb.map(x=>({coord:[x.idx,w.bars[x.idx].h*1.002],symbol:x.bull?'triangle':'path://M0,0L5,8L10,0Z',symbolSize:10,symbolRotate:x.bull?0:180,itemStyle:{color:x.bull?U:D}}));
+// Gap zones as markArea
+const gapAreas=w.gaps.filter(g=>!g.filled).map(g=>[{xAxis:dt[g.idx],yAxis:g.top,itemStyle:{color:g.pro?'#ffc23330':'#5b8ff920'}},{xAxis:dt[Math.min(g.idx+30,dt.length-1)],yAxis:g.bot}]);
+// Pro signals as separate scatter series with proper [x,y] data
+const proData=w.gaps.filter(g=>g.pro&&!g.filled).map(g=>[dt[g.idx],g.bull?w.bars[g.idx].l*0.996:w.bars[g.idx].h*1.004]);
 
+const dispName=s.endsWith('USDT')?s:MKT_SYMS[($('wrb-m')?.value)||'crypto']?.find(x=>x.v===s)?.l||s;
 ic('c-wrb').setOption({backgroundColor:B,animation:false,
-title:{text:`${s} — ${t} WRB/HG Analysis`,left:'center',textStyle:{color:T,fontSize:15,fontWeight:700}},
+title:{text:`${dispName} — ${t} WRB/HG Analysis`,left:'center',textStyle:{color:T,fontSize:15,fontWeight:700}},
 tooltip:{trigger:'axis',axisPointer:{type:'cross'},backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T}},
-legend:{data:['WRB','Pro Signal'],bottom:4,right:16,textStyle:{color:S,fontSize:10}},
+legend:{data:['Pro Signal'],bottom:4,right:16,textStyle:{color:S,fontSize:10}},
 grid:[{left:'8%',right:'4%',top:'10%',height:'54%'},{left:'8%',right:'4%',top:'68%',height:'14%'}],
 xAxis:[{type:'category',data:dt,gridIndex:0,axisLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:9},splitLine:{show:false}},
 {type:'category',data:dt,gridIndex:1,axisLine:{lineStyle:{color:G}},axisLabel:{show:false},splitLine:{show:false}}],
@@ -555,10 +559,9 @@ yAxis:[{type:'value',gridIndex:0,splitLine:{lineStyle:{color:G}},axisLabel:{colo
 {type:'value',gridIndex:1,splitLine:{show:false},axisLabel:{show:false},axisLine:{show:false}}],
 series:[
 {type:'candlestick',data:oh,itemStyle:{color:U,color0:D,borderColor:U,borderColor0:D},
-markPoint:{data:wrbMark,label:{show:false}},
+markPoint:{data:wrbMark,label:{show:false},animation:false},
 markArea:{silent:true,data:gapAreas}},
-{name:'WRB',type:'scatter',data:[],symbol:'triangle',itemStyle:{color:'#5b8ff9'}},
-{name:'Pro Signal',type:'scatter',data:proMarks.map(p=>({value:[p.xAxis,p.yAxis],symbol:p.symbol,symbolSize:p.symbolSize,itemStyle:p.itemStyle})),symbol:'diamond',symbolSize:12,itemStyle:{color:'#ffc233'}},
+{name:'Pro Signal',type:'scatter',data:proData,symbol:'diamond',symbolSize:14,itemStyle:{color:'#ffc233',borderColor:'#fff',borderWidth:2},z:10},
 {type:'bar',data:v.map((x,i)=>({value:x,itemStyle:{color:vc[i]}})),xAxisIndex:1,yAxisIndex:1}
 ],
 dataZoom:[{type:'inside',xAxisIndex:[0,1]}]
