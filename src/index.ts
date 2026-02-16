@@ -6,6 +6,7 @@ import { registerKlineTool } from "./tools/kline.js";
 import { registerIndicatorsTool } from "./tools/indicators.js";
 import { registerOverlayTool } from "./tools/overlay.js";
 import { registerFundamentalsTool } from "./tools/fundamentals.js";
+import { registerVolumeProfileTool } from "./tools/volume-profile.js";
 
 const server = new McpServer({
   name: "gainlab",
@@ -22,6 +23,7 @@ registerKlineTool(server);
 registerIndicatorsTool(server);
 registerOverlayTool(server);
 registerFundamentalsTool(server);
+registerVolumeProfileTool(server);
 
 // Start server
 async function main() {
