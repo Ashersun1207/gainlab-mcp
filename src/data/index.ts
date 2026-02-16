@@ -1,6 +1,7 @@
 import { OHLCV, FundamentalData, Market, Timeframe } from "./types.js";
 import { getCryptoKlines } from "./crypto.js";
 import { getUSStockKlines, getUSStockFundamentals } from "./us-stock.js";
+import { getAStockKlines, getAStockFundamentals } from "./a-stock.js";
 import { getCommodityKlines } from "./commodity.js";
 
 export async function getKlines(
@@ -21,8 +22,13 @@ export async function getKlines(
       }
       return getUSStockKlines(symbol, limit);
     case "a_stock":
-      // TODO: EODHD integration (Phase 3)
-      throw new Error("A-stock data not yet implemented. Set EODHD_API_KEY and wait for Phase 3.");
+      // A-stocks only support daily data (EODHD EOD endpoint)
+      if (timeframe !== "1d") {
+        throw new Error(
+          `A-stock data only supports daily timeframe (1d), got: ${timeframe}`
+        );
+      }
+      return getAStockKlines(symbol, limit);
     case "commodity":
       // Commodities only support daily data (EODHD EOD endpoint)
       if (timeframe !== "1d") {
@@ -45,8 +51,9 @@ export async function getFundamentals(
   switch (market) {
     case "us_stock":
       return getUSStockFundamentals(symbol, period, limit);
-    case "crypto":
     case "a_stock":
+      return getAStockFundamentals(symbol, period, limit);
+    case "crypto":
     case "commodity":
       throw new Error(`Fundamental data not supported for market: ${market}`);
     default:

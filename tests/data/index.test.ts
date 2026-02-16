@@ -30,11 +30,17 @@ describe("getKlines router", () => {
     );
   });
 
-  it("throws for unimplemented a_stock market", async () => {
+  it("routes a_stock market to EODHD", async () => {
+    const data = await getKlines("600519", "a_stock", "1d", 5);
+    assert.ok(data.length > 0, "should return data from EODHD");
+    assert.ok(data[0].close > 0, "should have valid price");
+  });
+
+  it("rejects non-daily timeframes for a_stock", async () => {
     await assert.rejects(
-      () => getKlines("600519.SHG", "a_stock", "1d", 10),
+      () => getKlines("600519", "a_stock", "1h", 10),
       (err: any) => {
-        assert.ok(err.message.includes("not yet implemented"), "should mention not implemented");
+        assert.ok(err.message.includes("daily"), "should mention daily limitation");
         return true;
       }
     );
@@ -46,6 +52,12 @@ describe("getFundamentals router", () => {
     const data = await getFundamentals("AAPL", "us_stock", "annual", 2);
     assert.ok(data.length > 0, "should return fundamental data");
     assert.ok(data[0].metrics.revenue !== undefined, "should have revenue");
+  });
+
+  it("routes a_stock to EODHD fundamentals", async () => {
+    const data = await getFundamentals("600519", "a_stock", "annual", 2);
+    assert.ok(data.length > 0, "should return fundamental data");
+    assert.ok(data[0].metrics.totalRevenue !== undefined || data[0].metrics.totalRevenue === null, "should have totalRevenue");
   });
 
   it("throws for unsupported markets", async () => {
