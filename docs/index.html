@@ -55,9 +55,9 @@
   <div class="sub">Agent's Eyes for Financial Charts</div>
   <div class="tag">Agents can analyze, but they can't draw charts. GainLab gives agents eyes.</div>
   <div class="stats">
-    <div class="s"><span class="d g"></span><span class="n">6</span><span class="l">tools</span></div>
+    <div class="s"><span class="d g"></span><span class="n">7</span><span class="l">tools</span></div>
     <div class="s"><span class="d b"></span><span class="n">4</span><span class="l">markets</span></div>
-    <div class="s"><span class="d y"></span><span class="n">216</span><span class="l">tests</span></div>
+    <div class="s"><span class="d y"></span><span class="n">275</span><span class="l">tests</span></div>
   </div>
 </div>
 
@@ -67,6 +67,7 @@
   <button class="tb" onclick="sw('indicators',this)">🔧 Indicators</button>
   <button class="tb" onclick="sw('overlay',this)">📈 Overlay</button>
   <button class="tb" onclick="sw('fundamentals',this)">📋 Fundamentals</button>
+  <button class="tb" onclick="sw('wrb',this)">🎯 WRB Scoring</button>
   <button class="tb" onclick="sw('heatmap',this)">🔥 Heatmap</button>
   <button class="tb" onclick="sw('corr',this)">🔗 Correlation</button>
 </div>
@@ -114,8 +115,22 @@
   </div>
 
   <div class="pnl" id="p-fundamentals">
-    <div class="ctl"><span class="st">Fundamentals require API keys — showing sample data (AAPL vs MSFT vs GOOGL)</span></div>
+    <div class="ctl">
+      <select id="fn-m"><option value="standard" selected>Standard</option><option value="dcf">DCF Gauge</option><option value="estimates">Analyst Estimates</option></select>
+      <select id="fn-s" style="display:none"><option>AAPL</option><option>MSFT</option><option>GOOGL</option><option>TSLA</option><option>AMZN</option><option>NVDA</option></select>
+      <button class="go" onclick="lfun()">Load</button><div class="sp"></div><span class="st" id="fn-st">Sample data — API keys required for live</span>
+    </div>
     <div class="cw" id="c-fundamentals"></div>
+  </div>
+
+  <div class="pnl" id="p-wrb">
+    <div class="ctl">
+      <select id="wrb-s"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option></select>
+      <select id="wrb-t"><option value="1h">1H</option><option value="4h">4H</option><option value="1d" selected>1D</option></select>
+      <select id="wrb-l"><option>100</option><option selected>150</option><option>200</option></select>
+      <button class="go" onclick="lwrb()">Analyze</button><div class="sp"></div><span class="st" id="wrb-st">—</span>
+    </div>
+    <div class="cw" id="c-wrb" style="height:540px"></div>
   </div>
 
   <div class="pnl" id="p-heatmap">
@@ -144,14 +159,22 @@
 <div class="code-s">
   <h3>Use with any MCP Client</h3>
   <div class="cb"><span class="c">// Ask your AI agent:</span>
-"Draw a BTC daily K-line chart with RSI and MACD"
+"Draw a BTC daily chart with RSI and MACD"
+"Analyze AAPL with WRB/HG scoring"
+"Show me a DCF valuation for MSFT"
 
-<span class="c">// Or call the MCP tool directly:</span>
+<span class="c">// Or call MCP tools directly:</span>
 {
   <span class="s">"tool"</span>: <span class="s">"gainlab_indicators"</span>,
   <span class="s">"symbol"</span>: <span class="s">"BTCUSDT"</span>,
   <span class="s">"market"</span>: <span class="s">"crypto"</span>,
   <span class="s">"indicators"</span>: [<span class="s">"MA"</span>, <span class="s">"RSI"</span>, <span class="s">"MACD"</span>]
+}
+{
+  <span class="s">"tool"</span>: <span class="s">"gainlab_wrb_scoring"</span>,
+  <span class="s">"symbol"</span>: <span class="s">"BTCUSDT"</span>,
+  <span class="s">"market"</span>: <span class="s">"crypto"</span>,
+  <span class="s">"sensitivity"</span>: <span class="n">1.5</span>
 }</div>
 </div>
 
@@ -159,7 +182,8 @@
   <div class="ft"><div class="i">📊</div><h4>K-Line Charts</h4><p>Professional candlestick + volume. Crypto, US stocks, A-shares, commodities.</p><span class="tg lv">✅ live</span></div>
   <div class="ft"><div class="i">🔧</div><h4>Technical Indicators</h4><p>MA, EMA, RSI, MACD, Bollinger, KDJ. Dynamic multi-panel layout.</p><span class="tg lv">✅ live</span></div>
   <div class="ft"><div class="i">📈</div><h4>Multi-Asset Overlay</h4><p>Compare 2-6 assets. Normalized % change. Cross-market.</p><span class="tg lv">✅ live</span></div>
-  <div class="ft"><div class="i">📋</div><h4>Fundamentals</h4><p>Revenue, margins, EPS. Peer comparison. US + A-shares.</p><span class="tg lv">✅ live</span></div>
+  <div class="ft"><div class="i">📋</div><h4>Fundamentals</h4><p>Revenue, margins, EPS. DCF valuation gauge. Analyst estimates. Peer comparison.</p><span class="tg lv">✅ live</span></div>
+  <div class="ft"><div class="i">🎯</div><h4>WRB/HG Scoring</h4><p>Wide Range Bar + Hidden Gap detection. ABC scoring with Pro signals for entries.</p><span class="tg lv">✅ live</span></div>
   <div class="ft"><div class="i">📊</div><h4>Volume Profile</h4><p>POC, Value Area, price-volume distribution. Interactive VP chart.</p><span class="tg lv">✅ live</span></div>
   <div class="ft"><div class="i">📉</div><h4>VWAP + ATR</h4><p>Institutional VWAP, Anchored VWAP, and ATR volatility.</p><span class="tg lv">✅ live</span></div>
   <div class="ft"><div class="i">🔥</div><h4>Sector Heatmap</h4><p>Finviz-style treemap. Block size = volume, color = 24h change.</p><span class="tg lv">✅ live</span></div>
@@ -175,7 +199,7 @@
   │ MCP Protocol
   ▼
 @gainlab/mcp-server
-  ├── tools/    → 6 MCP tools (kline, volume-profile, indicators, overlay, fundamentals, heatmap)
+  ├── tools/    → 7 MCP tools (kline, volume-profile, indicators, overlay, fundamentals, heatmap, wrb-scoring)
   ├── data/     → 4 markets (Binance · FMP · EODHD)
   ├── render/   → ECharts (interactive HTML + server-side PNG)
   └── utils/    → TA math (zero deps) + proxy-aware fetch</div>
@@ -190,7 +214,7 @@
 const U='#00d4aa',D='#ff4757',B='#0d0d1f',G='#1a1a35',T='#e8e8f0',S='#8888aa',P=['#00d4aa','#5b8ff9','#ff4757','#ffc233','#7c4dff'];
 const ch={};
 function ic(id){if(!ch[id]){ch[id]=echarts.init(document.getElementById(id));window.addEventListener('resize',()=>ch[id]?.resize())}return ch[id]}
-function sw(n,el){document.querySelectorAll('.tb').forEach(b=>b.classList.remove('on'));document.querySelectorAll('.pnl').forEach(p=>p.classList.remove('on'));el.classList.add('on');document.getElementById('p-'+n).classList.add('on');if(n==='kline'&&!ch['c-kline'])lkl();if(n==='vp'&&!ch['c-vp'])lvp();if(n==='indicators'&&!ch['c-indicators'])lind();if(n==='overlay'&&!ch['c-overlay'])lov();if(n==='fundamentals'&&!ch['c-fundamentals'])lfun();if(n==='heatmap'&&!ch['c-heatmap'])lhm();if(n==='corr'&&!ch['c-corr'])lcr();setTimeout(()=>{if(ch['c-'+n])ch['c-'+n].resize()},50)}
+function sw(n,el){document.querySelectorAll('.tb').forEach(b=>b.classList.remove('on'));document.querySelectorAll('.pnl').forEach(p=>p.classList.remove('on'));el.classList.add('on');document.getElementById('p-'+n).classList.add('on');if(n==='kline'&&!ch['c-kline'])lkl();if(n==='vp'&&!ch['c-vp'])lvp();if(n==='indicators'&&!ch['c-indicators'])lind();if(n==='overlay'&&!ch['c-overlay'])lov();if(n==='fundamentals'&&!ch['c-fundamentals'])lfun();if(n==='wrb'&&!ch['c-wrb'])lwrb();if(n==='heatmap'&&!ch['c-heatmap'])lhm();if(n==='corr'&&!ch['c-corr'])lcr();setTimeout(()=>{if(ch['c-'+n])ch['c-'+n].resize()},50)}
 async function fb(s,i,l){return(await fetch(`https://api.binance.com/api/v3/klines?symbol=${s}&interval=${i}&limit=${l}`)).json()}
 function fd(ts,tf){const d=new Date(ts);return(tf.includes('m')||tf==='1h'||tf==='4h')?d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})}
 
@@ -305,10 +329,72 @@ ic('c-overlay').setOption({backgroundColor:B,animation:false,title:{text:`${s1} 
 const la1=r1[r1.length-1],la2=r2[r2.length-1];const p1=((+la1[4]-+r1[0][4])/+r1[0][4]*100).toFixed(1),p2=((+la2[4]-+r2[0][4])/+r2[0][4]*100).toFixed(1);
 $('ov-st').textContent=`${s1}: ${p1>=0?'+':''}${p1}% · ${s2}: ${p2>=0?'+':''}${p2}%`}catch(e){$('ov-st').textContent='Error: '+e.message}}
 
-// FUNDAMENTALS (sample data)
-function lfun(){const years=['2021','2022','2023','2024','2025'];
-const data={AAPL:{rev:[365.8,394.3,383.3,391.0,420.5],ni:[94.7,99.8,97.0,93.7,105.2]},MSFT:{rev:[168.1,198.3,211.9,245.1,277.0],ni:[61.3,72.7,72.4,88.1,102.3]},GOOGL:{rev:[257.6,282.8,307.4,350.0,381.0],ni:[76.0,59.9,73.8,100.7,112.5]}};
-ic('c-fundamentals').setOption({backgroundColor:B,animation:true,title:{text:'Revenue Comparison (Billion USD)',left:'center',textStyle:{color:T,fontSize:14,fontWeight:700}},tooltip:{trigger:'axis',backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T},formatter:function(p){let s=p[0].axisValue+'<br>';p.forEach(i=>{s+=`<span style="color:${i.color}">●</span> ${i.seriesName}: $${i.value}B<br>`});return s}},legend:{data:['AAPL','MSFT','GOOGL'],bottom:4,textStyle:{color:S,fontSize:10}},grid:{left:'8%',right:'4%',top:'14%',bottom:'14%'},xAxis:{type:'category',data:years,axisLine:{lineStyle:{color:G}},axisLabel:{color:S}},yAxis:{type:'value',splitLine:{lineStyle:{color:G}},axisLabel:{color:S,formatter:v=>'$'+v+'B'}},series:[{name:'AAPL',type:'bar',data:data.AAPL.rev,itemStyle:{color:P[0],borderRadius:[4,4,0,0]}},{name:'MSFT',type:'bar',data:data.MSFT.rev,itemStyle:{color:P[1],borderRadius:[4,4,0,0]}},{name:'GOOGL',type:'bar',data:data.GOOGL.rev,itemStyle:{color:P[3],borderRadius:[4,4,0,0]}}]},true)}
+// FUNDAMENTALS (3 modes: standard / dcf / estimates)
+function lfun(){const mode=$('fn-m').value;
+if(mode==='dcf')lfunDCF();
+else if(mode==='estimates')lfunEst();
+else lfunStd()}
+
+// Standard — bar comparison
+function lfunStd(){const years=['2021','2022','2023','2024','2025'];
+const data={AAPL:{rev:[365.8,394.3,383.3,391.0,420.5]},MSFT:{rev:[168.1,198.3,211.9,245.1,277.0]},GOOGL:{rev:[257.6,282.8,307.4,350.0,381.0]}};
+$('fn-s').style.display='none';
+ic('c-fundamentals').setOption({backgroundColor:B,animation:true,title:{text:'Revenue Comparison (Billion USD)',left:'center',textStyle:{color:T,fontSize:14,fontWeight:700}},tooltip:{trigger:'axis',backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T},formatter:function(p){let s=p[0].axisValue+'<br>';p.forEach(i=>{s+=`<span style="color:${i.color}">●</span> ${i.seriesName}: $${i.value}B<br>`});return s}},legend:{data:['AAPL','MSFT','GOOGL'],bottom:4,textStyle:{color:S,fontSize:10}},grid:{left:'8%',right:'4%',top:'14%',bottom:'14%'},xAxis:{type:'category',data:years,axisLine:{lineStyle:{color:G}},axisLabel:{color:S}},yAxis:{type:'value',splitLine:{lineStyle:{color:G}},axisLabel:{color:S,formatter:v=>'$'+v+'B'}},series:[{name:'AAPL',type:'bar',data:data.AAPL.rev,itemStyle:{color:P[0],borderRadius:[4,4,0,0]}},{name:'MSFT',type:'bar',data:data.MSFT.rev,itemStyle:{color:P[1],borderRadius:[4,4,0,0]}},{name:'GOOGL',type:'bar',data:data.GOOGL.rev,itemStyle:{color:P[3],borderRadius:[4,4,0,0]}}]},true);
+$('fn-st').textContent='Sample data — AAPL vs MSFT vs GOOGL'}
+
+// DCF Gauge — sample
+function lfunDCF(){$('fn-s').style.display='inline-block';
+const sym=$('fn-s').value;
+const dcfSample={AAPL:{dcf:198.5,price:178.2},MSFT:{dcf:445.0,price:420.8},GOOGL:{dcf:195.0,price:175.3},TSLA:{dcf:180.0,price:248.5},AMZN:{dcf:210.0,price:192.7},NVDA:{dcf:880.0,price:950.0}};
+const d=dcfSample[sym]||{dcf:200,price:180};
+const margin=((d.dcf-d.price)/d.dcf*100);const under=margin>0;
+const maxV=Math.max(d.dcf,d.price)*1.3;
+ic('c-fundamentals').setOption({backgroundColor:B,animation:true,
+title:{text:`${sym} — DCF Valuation`,left:'center',top:10,textStyle:{color:T,fontSize:15,fontWeight:700}},
+series:[{type:'gauge',center:['50%','60%'],radius:'80%',min:0,max:Math.round(maxV),
+progress:{show:true,width:22,itemStyle:{color:under?U:D}},
+pointer:{show:true,length:'60%',width:6,itemStyle:{color:'#fff'}},
+axisLine:{lineStyle:{width:22,color:[[d.dcf/maxV,under?'#1a3a2a':'#3a1a2a'],[1,'#1a1a35']]}},
+axisTick:{distance:-28,lineStyle:{color:'#444',width:1}},
+splitLine:{distance:-32,lineStyle:{color:'#666',width:2}},
+axisLabel:{color:S,fontSize:11,distance:-18,formatter:v=>'$'+Math.round(v)},
+anchor:{show:true,size:16,itemStyle:{borderWidth:4,borderColor:under?U:D,color:'#1a1a35'}},
+detail:{valueAnimation:true,formatter:v=>'$'+v.toFixed(2),color:T,fontSize:28,fontWeight:700,offsetCenter:[0,'30%']},
+title:{show:true,offsetCenter:[0,'46%'],color:S,fontSize:13},
+data:[{value:d.price,name:'Stock Price'}],
+markPoint:{data:[{x:'50%',y:'82%',symbol:'pin',symbolSize:0,label:{show:true,formatter:`DCF: $${d.dcf.toFixed(2)}`,color:under?U:D,fontSize:14,fontWeight:600}}]}
+}]},true);
+const tag=under?`Undervalued by ${margin.toFixed(1)}%`:`Overvalued by ${Math.abs(margin).toFixed(1)}%`;
+$('fn-st').textContent=`${sym} — DCF: $${d.dcf} | Price: $${d.price} | ${tag} (sample data)`}
+
+// Analyst Estimates — sample
+function lfunEst(){$('fn-s').style.display='inline-block';
+const sym=$('fn-s').value;
+const estSample={AAPL:{actual:[6.11,6.14,6.42,6.97],est:[7.35,7.80,8.15],years:['2022','2023','2024','2025','2026E','2027E','2028E']},
+MSFT:{actual:[9.65,11.07,11.80,13.15],est:[14.50,16.20,17.80],years:['2022','2023','2024','2025','2026E','2027E','2028E']},
+GOOGL:{actual:[4.56,5.80,6.52,7.88],est:[8.75,9.60,10.40],years:['2022','2023','2024','2025','2026E','2027E','2028E']},
+TSLA:{actual:[1.07,3.12,2.48,2.10],est:[2.85,3.90,5.20],years:['2022','2023','2024','2025','2026E','2027E','2028E']},
+AMZN:{actual:[-.27,1.29,2.90,4.47],est:[5.80,7.10,8.50],years:['2022','2023','2024','2025','2026E','2027E','2028E']},
+NVDA:{actual:[1.74,4.02,12.96,29.04],est:[35.00,38.50,42.00],years:['2022','2023','2024','2025','2026E','2027E','2028E']}};
+const d=estSample[sym]||estSample.AAPL;
+const allV=[...d.actual,...d.est];
+ic('c-fundamentals').setOption({backgroundColor:B,animation:true,
+title:{text:`${sym} — EPS: Actual vs Estimates`,left:'center',top:8,textStyle:{color:T,fontSize:15,fontWeight:700}},
+tooltip:{trigger:'axis',backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T},formatter:p=>{let s=p[0].axisValue+'<br>';p.forEach(i=>{if(i.value!=null)s+=`<span style="color:${i.color}">●</span> ${i.seriesName}: $${i.value.toFixed(2)}<br>`});return s}},
+legend:{data:['Actual EPS','Estimated EPS'],bottom:4,textStyle:{color:S,fontSize:10}},
+grid:{left:'10%',right:'6%',top:'16%',bottom:'14%'},
+xAxis:{type:'category',data:d.years,axisLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:11},splitLine:{show:false}},
+yAxis:{type:'value',splitLine:{lineStyle:{color:G}},axisLabel:{color:S,formatter:v=>'$'+v.toFixed(2)}},
+series:[
+{name:'Actual EPS',type:'bar',data:[...d.actual,...d.est.map(()=>null)],itemStyle:{color:U,borderRadius:[4,4,0,0]},barWidth:'30%'},
+{name:'Estimated EPS',type:'bar',data:[...d.actual.map(()=>null),...d.est],itemStyle:{color:'#5b8ff980',borderColor:'#5b8ff9',borderWidth:1,borderType:'dashed',borderRadius:[4,4,0,0]},barWidth:'30%'}
+]},true);
+$('fn-st').textContent=`${sym} EPS — ${d.actual.length} actual + ${d.est.length} estimates (sample data)`}
+
+// Show/hide symbol selector when mode changes
+$('fn-m')?.addEventListener('change',function(){
+  const m=this.value;$('fn-s').style.display=m==='standard'?'none':'inline-block';
+})
 
 // CRYPTO SECTORS MAP
 const CSEC={BTC:'Layer 1',ETH:'Layer 1',SOL:'Layer 1',ADA:'Layer 1',AVAX:'Layer 1',DOT:'Layer 1',NEAR:'Layer 1',SUI:'Layer 1',APT:'Layer 1',TON:'Layer 1',ATOM:'Layer 1',ICP:'Layer 1',ALGO:'Layer 1',HBAR:'Layer 1',FTM:'Layer 1',SEI:'Layer 1',TIA:'Layer 1',INJ:'Layer 1',KAS:'Layer 1',
@@ -365,6 +451,65 @@ yAxis:{type:'category',data:[...names].reverse(),axisLine:{show:false},axisTick:
 visualMap:{min:-1,max:1,calculable:false,orient:'vertical',right:6,top:'center',inRange:{color:[D,'#6a3040','#4a4a6a','#3a6a50',U]},textStyle:{color:S},text:['+1','-1']},
 series:[{type:'heatmap',data:hd,label:{show:true,formatter:p=>p.data[2]===1?'1.00':p.data[2].toFixed(2),color:T,fontSize:n>5?10:13},emphasis:{itemStyle:{borderColor:'#fff',borderWidth:2}},itemStyle:{borderColor:B,borderWidth:2}}]},true);
 $('cr-st').textContent=`${names.join(' × ')} · ${minLen} days · Pearson r`}catch(e){$('cr-st').textContent='Error: '+e.message}}
+
+// WRB SCORING
+function detectWRB(klines,lb=5,sens=1.5){
+const bars=klines.map(k=>({o:+k[1],h:+k[2],l:+k[3],c:+k[4],v:+k[5],t:k[0]}));
+const wrb=[],gaps=[];
+for(let i=lb;i<bars.length;i++){
+const b=bars[i],body=Math.abs(b.c-b.o);
+let avgBody=0;for(let j=i-lb;j<i;j++)avgBody+=Math.abs(bars[j].c-bars[j].o);avgBody/=lb;
+if(body>avgBody*sens){
+const bull=b.c>b.o;wrb.push({idx:i,bull,body});
+// Check for hidden gap (no overlap with prev candle body)
+const prev=bars[i-1],prevHi=Math.max(prev.o,prev.c),prevLo=Math.min(prev.o,prev.c);
+const curHi=Math.max(b.o,b.c),curLo=Math.min(b.o,b.c);
+if(curLo>prevHi||curHi<prevLo){
+// Check if gap zone still active (not filled by later candles)
+const gapTop=bull?curLo:curHi,gapBot=bull?prevHi:prevLo;
+let filled=false,pro=false;
+// Simple pro check: volume > 1.5x avg and strong direction
+const avgVol=bars.slice(Math.max(0,i-20),i).reduce((a,x)=>a+x.v,0)/Math.min(20,i);
+if(b.v>avgVol*1.2&&body>avgBody*2)pro=true;
+// Check if filled by subsequent bars
+for(let j=i+1;j<bars.length;j++){const fb=bars[j];if(bull&&fb.l<gapBot){filled=true;break}if(!bull&&fb.h>gapTop){filled=true;break}}
+gaps.push({idx:i,bull,top:Math.max(gapTop,gapBot),bot:Math.min(gapTop,gapBot),filled,pro})
+}}}
+return{wrb,gaps,bars}}
+
+async function lwrb(){const s=$('wrb-s').value,t=$('wrb-t').value,l=+$('wrb-l').value;$('wrb-st').textContent='Analyzing...';
+try{const r=await fb(s,t,l),dt=r.map(k=>fd(k[0],t)),oh=r.map(k=>[+k[1],+k[4],+k[3],+k[2]]),v=r.map(k=>+k[5]),vc=r.map(k=>+k[4]>=+k[1]?U+'80':D+'80');
+const w=detectWRB(r);
+// Mark WRB candles
+const wrbMark=w.wrb.map(x=>({xAxis:dt[x.idx],yAxis:w.bars[x.idx].h,symbol:'triangle',symbolSize:8,itemStyle:{color:x.bull?U:D}}));
+// Mark area for active gap zones
+const gapAreas=w.gaps.filter(g=>!g.filled).map(g=>[{xAxis:dt[g.idx],yAxis:g.top,itemStyle:{color:g.pro?'#ffc23325':'#5b8ff918'}},{xAxis:dt[Math.min(g.idx+30,dt.length-1)],yAxis:g.bot}]);
+// Pro signals — diamond markers
+const proMarks=w.gaps.filter(g=>g.pro&&!g.filled).map(g=>({xAxis:dt[g.idx],yAxis:g.bull?w.bars[g.idx].l*0.998:w.bars[g.idx].h*1.002,symbol:'diamond',symbolSize:12,itemStyle:{color:'#ffc233',borderColor:'#fff',borderWidth:1}}));
+
+ic('c-wrb').setOption({backgroundColor:B,animation:false,
+title:{text:`${s} — ${t} WRB/HG Analysis`,left:'center',textStyle:{color:T,fontSize:15,fontWeight:700}},
+tooltip:{trigger:'axis',axisPointer:{type:'cross'},backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T}},
+legend:{data:['WRB','Pro Signal'],bottom:4,right:16,textStyle:{color:S,fontSize:10}},
+grid:[{left:'8%',right:'4%',top:'10%',height:'54%'},{left:'8%',right:'4%',top:'68%',height:'14%'}],
+xAxis:[{type:'category',data:dt,gridIndex:0,axisLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:9},splitLine:{show:false}},
+{type:'category',data:dt,gridIndex:1,axisLine:{lineStyle:{color:G}},axisLabel:{show:false},splitLine:{show:false}}],
+yAxis:[{type:'value',gridIndex:0,splitLine:{lineStyle:{color:G}},axisLabel:{color:S},scale:true},
+{type:'value',gridIndex:1,splitLine:{show:false},axisLabel:{show:false},axisLine:{show:false}}],
+series:[
+{type:'candlestick',data:oh,itemStyle:{color:U,color0:D,borderColor:U,borderColor0:D},
+markPoint:{data:wrbMark,label:{show:false}},
+markArea:{silent:true,data:gapAreas}},
+{name:'WRB',type:'scatter',data:[],symbol:'triangle',itemStyle:{color:'#5b8ff9'}},
+{name:'Pro Signal',type:'scatter',data:proMarks.map(p=>({value:[p.xAxis,p.yAxis],symbol:p.symbol,symbolSize:p.symbolSize,itemStyle:p.itemStyle})),symbol:'diamond',symbolSize:12,itemStyle:{color:'#ffc233'}},
+{type:'bar',data:v.map((x,i)=>({value:x,itemStyle:{color:vc[i]}})),xAxisIndex:1,yAxisIndex:1}
+],
+dataZoom:[{type:'inside',xAxisIndex:[0,1]}]
+},true);
+
+const activeG=w.gaps.filter(g=>!g.filled).length,proG=w.gaps.filter(g=>g.pro&&!g.filled).length;
+$('wrb-st').textContent=`WRB: ${w.wrb.length} | Gaps: ${w.gaps.length} (Active: ${activeG}) | Pro: ${proG} · ${r.length} candles`
+}catch(e){$('wrb-st').textContent='Error: '+e.message}}
 
 function $(id){return document.getElementById(id)}
 // Auto-load first tab
