@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Pre-commit hook: check README ↔ code consistency
+# Install: git config core.hooksPath .githooks
+
+echo "🦞 Running doc consistency check..."
+
+# Only run if README.md or src/ changed in this commit
+STAGED=$(git diff --cached --name-only)
+if echo "$STAGED" | grep -qE '(src/|README\.md|package\.json)'; then
+  bash scripts/check-docs.sh
+  if [ $? -ne 0 ]; then
+    echo ""
+    echo "Commit blocked: README out of sync. Fix and re-stage."
+    exit 1
+  fi
+else
+  echo "No src/README changes staged, skipping doc check."
+fi

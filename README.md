@@ -11,14 +11,14 @@
 
 <p align="center">
   <a href="https://ashersun1207.github.io/gainlab-mcp/">Live Demo</a> •
-  <a href="#tools">4 Tools</a> •
+  <a href="#tools">6 Tools</a> •
   <a href="#markets">4 Markets</a> •
   <a href="#quick-start">Quick Start</a>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/tools-4%20available-00d4aa" alt="Tools" />
-  <img src="https://img.shields.io/badge/tests-112%20passing-00d4aa" alt="Tests" />
+  <img src="https://img.shields.io/badge/tools-6%20available-00d4aa" alt="Tools" />
+  <img src="https://img.shields.io/badge/tests-216%20passing-00d4aa" alt="Tests" />
   <img src="https://img.shields.io/badge/markets-crypto%20%7C%20US%20%7C%20A--shares%20%7C%20gold-5b8ff9" alt="Markets" />
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License" />
 </p>
@@ -40,12 +40,11 @@ GainLab: fetches data → normalizes → renders overlay chart → returns inter
 | Tool | Description | Status |
 |------|-------------|--------|
 | `gainlab_kline` | Candlestick charts with volume | ✅ Live |
-| `gainlab_indicators` | Technical indicators (MA/EMA/RSI/MACD/BOLL/KDJ) | ✅ Live |
+| `gainlab_indicators` | Technical indicators (MA/EMA/RSI/MACD/BOLL/KDJ/VWAP/ATR) | ✅ Live |
 | `gainlab_overlay` | Multi-asset comparison (2-6 assets, normalized) | ✅ Live |
 | `gainlab_fundamentals` | Revenue, margins, EPS — peer comparison | ✅ Live |
-| `gainlab_calendar` | Financial calendar (earnings, FOMC, CPI) | 🔜 Phase 3 |
-| `gainlab_volume_profile` | Volume-at-price distribution | 🔜 Phase 3 |
-| `gainlab_funding` | Crypto perpetual funding rates | 🔜 Phase 3 |
+| `gainlab_volume_profile` | Volume-at-price distribution with POC, VAH, VAL | ✅ Live |
+| `gainlab_heatmap` | Sector treemap + asset correlation matrix | ✅ Live |
 
 ## Markets
 
@@ -118,11 +117,13 @@ export EODHD_API_KEY=xxx   # A-shares + precious metals
   "symbol": "AAPL",
   "market": "us_stock",
   "timeframe": "1d",
-  "indicators": ["MA", "RSI", "MACD"],
+  "indicators": ["MA", "RSI", "MACD", "VWAP", "ATR"],
   "ma_periods": [7, 25, 99],
   "limit": 100
 }
 ```
+
+Supported indicators: `MA`, `EMA`, `RSI`, `MACD`, `BOLL`, `KDJ`, `VWAP`, `ATR` (+ Anchored VWAP).
 
 ### `gainlab_overlay`
 
@@ -150,18 +151,63 @@ export EODHD_API_KEY=xxx   # A-shares + precious metals
 }
 ```
 
+### `gainlab_volume_profile`
+
+```json
+{
+  "symbol": "BTCUSDT",
+  "market": "crypto",
+  "timeframe": "1d",
+  "limit": 100,
+  "rows": 24,
+  "value_area_percent": 70,
+  "format": "interactive"
+}
+```
+
+Shows POC (Point of Control), VAH (Value Area High), VAL (Value Area Low), and buy/sell volume distribution.
+
+### `gainlab_heatmap`
+
+**Sector Treemap** — Finviz-style market overview:
+```json
+{
+  "type": "sector_treemap",
+  "market": "crypto",
+  "change_period": "1d",
+  "limit": 100,
+  "format": "interactive"
+}
+```
+
+**Correlation Matrix** — Pairwise Pearson correlation:
+```json
+{
+  "type": "correlation_matrix",
+  "assets": [
+    { "symbol": "BTCUSDT", "market": "crypto" },
+    { "symbol": "ETHUSDT", "market": "crypto" },
+    { "symbol": "XAUUSD", "market": "commodity" }
+  ],
+  "timeframe": "1d",
+  "period": "90d",
+  "format": "interactive"
+}
+```
+
 ## Project Structure
 
 ```
 src/
-├── index.ts                  # MCP Server entry point
+├── index.ts                  # MCP Server entry point (6 tools registered)
 ├── data/                     # Data layer (one file per market)
 │   ├── types.ts              #   Shared interfaces (OHLCV, FundamentalData)
 │   ├── index.ts              #   Router (dispatches by market type)
 │   ├── crypto.ts             #   Binance API
 │   ├── us-stock.ts           #   FMP stable API
 │   ├── a-stock.ts            #   EODHD (Shanghai/Shenzhen auto-detect)
-│   └── commodity.ts          #   EODHD FOREX (gold, silver)
+│   ├── commodity.ts          #   EODHD FOREX (gold, silver)
+│   └── screener.ts           #   EODHD screener + Binance 24hr for heatmap
 ├── render/                   # Rendering layer
 │   ├── engine.ts             #   ECharts → HTML or PNG
 │   ├── themes.ts             #   GainLab dark theme
@@ -169,15 +215,23 @@ src/
 │       ├── kline.ts
 │       ├── indicators.ts     #     Dynamic multi-panel layout
 │       ├── overlay.ts        #     Date alignment + normalization
-│       └── fundamentals.ts   #     Grouped bar + peer comparison
+│       ├── fundamentals.ts   #     Grouped bar + peer comparison
+│       ├── volume-profile.ts #     VP with POC/VAH/VAL markers
+│       ├── sector-treemap.ts #     Finviz-style treemap
+│       └── correlation-matrix.ts #  Heatmap grid
 ├── tools/                    # MCP tool definitions (one per tool)
 │   ├── kline.ts
 │   ├── indicators.ts
 │   ├── overlay.ts
-│   └── fundamentals.ts
+│   ├── fundamentals.ts
+│   ├── volume-profile.ts
+│   └── heatmap.ts
 └── utils/
     ├── fetch.ts              # Proxy-aware HTTP client
-    └── ta.ts                 # Technical indicators (pure math, zero deps)
+    ├── ta.ts                 # Technical indicators (MA/EMA/RSI/MACD/BOLL/KDJ/VWAP/ATR)
+    ├── volume-profile.ts     # Volume profile math (POC, Value Area)
+    ├── correlation.ts        # Pearson correlation + returns
+    └── crypto-sectors.ts     # 120+ token → sector classification
 ```
 
 **Design principles:**
@@ -198,7 +252,7 @@ src/
 │            @gainlab/mcp-server                   │
 │                                                  │
 │  Tools ──→ Data Layer ──→ Render Layer ──→ Output│
-│  (4 tools)  (4 markets)   (ECharts)    (HTML/PNG)│
+│  (6 tools)  (4 markets)   (ECharts)    (HTML/PNG)│
 └──────────────────────────────────────────────────┘
 ```
 
@@ -221,17 +275,19 @@ Three-layer design (no framework lock-in):
 ## Testing
 
 ```bash
-pnpm test  # 112 tests across 21 suites
+pnpm test  # 216 tests across 45 suites
 ```
 
-Tests cover: data fetching (all 4 markets), chart generation, technical indicator math, tool registration.
+Tests cover: all 6 tools, all 4 data markets, chart generation, technical indicators (9 types), volume profile math, correlation computation, crypto sector classification, rendering engine.
 
 ## Roadmap
 
 - [x] **Phase 1** — Skeleton + K-line chart (Binance)
 - [x] **Phase 2** — 4 markets + Indicators + Overlay + Fundamentals
-- [ ] **Phase 3** — Calendar + Volume Profile + Funding Rate
-- [ ] **Phase 4** — Alerts + npm publish + Smithery marketplace
+- [x] **Phase 2.5a** — Volume Profile (POC/VAH/VAL) + VWAP/ATR
+- [x] **Phase 2.5b** — Sector Heatmap + Correlation Matrix
+- [ ] **Phase 2.5c** — DCF valuation + WRB_HG scoring
+- [ ] **Phase 3** — npm publish + multi-market demo + Smithery marketplace
 
 ## License
 
