@@ -81,7 +81,7 @@
   <div class="pnl on" id="p-kline">
     <div class="ctl">
       <select class="mkt" id="kl-m" onchange="umkt('kl')"><option value="crypto">🔗 Crypto</option><option value="us_stock">🇺🇸 US Stock</option><option value="a_stock">🇨🇳 A-Share</option><option value="commodity">🥇 Gold/Silver</option><option value="index">📊 Index</option></select>
-      <select id="kl-s"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option></select>
+      <select id="kl-s"></select>
       <select id="kl-t"><option value="1h">1H</option><option value="4h">4H</option><option value="1d" selected>1D</option><option value="1w">1W</option></select>
       <select id="kl-l"><option>60</option><option selected>100</option><option>200</option></select>
       <button class="go" onclick="lkl()">Load</button><div class="sp"></div><span class="st" id="kl-st">—</span>
@@ -92,7 +92,7 @@
   <div class="pnl" id="p-vp">
     <div class="ctl">
       <select class="mkt" id="vp-m" onchange="umkt('vp')"><option value="crypto">🔗 Crypto</option><option value="us_stock">🇺🇸 US Stock</option><option value="a_stock">🇨🇳 A-Share</option><option value="commodity">🥇 Gold/Silver</option><option value="index">📊 Index</option></select>
-      <select id="vp-s"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option></select>
+      <select id="vp-s"></select>
       <select id="vp-t"><option value="1h">1H</option><option value="4h">4H</option><option value="1d" selected>1D</option></select>
       <select id="vp-l"><option>60</option><option selected>120</option><option>200</option></select>
       <select id="vp-r"><option value="12">12 rows</option><option value="24" selected>24 rows</option><option value="48">48 rows</option></select>
@@ -104,7 +104,7 @@
   <div class="pnl" id="p-indicators">
     <div class="ctl">
       <select class="mkt" id="in-m" onchange="umkt('in')"><option value="crypto">🔗 Crypto</option><option value="us_stock">🇺🇸 US Stock</option><option value="a_stock">🇨🇳 A-Share</option><option value="commodity">🥇 Gold/Silver</option><option value="index">📊 Index</option></select>
-      <select id="in-s"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option></select>
+      <select id="in-s"></select>
       <select id="in-i" multiple size="4" style="min-width:130px"><option value="MA" selected>MA</option><option value="VWAP">VWAP</option><option value="RSI" selected>RSI</option><option value="MACD">MACD</option><option value="BOLL">Bollinger</option><option value="ATR">ATR</option></select>
       <button class="go" onclick="lind()">Load</button><div class="sp"></div><span class="st" id="in-st">—</span>
     </div>
@@ -114,9 +114,9 @@
   <div class="pnl" id="p-overlay">
     <div class="ctl">
       <select class="mkt" id="ov-m" onchange="umkt('ov')"><option value="crypto">🔗 Crypto</option><option value="us_stock">🇺🇸 US Stock</option><option value="a_stock">🇨🇳 A-Share</option><option value="commodity">🥇 Gold/Silver</option><option value="index">📊 Index</option></select>
-      <select id="ov-1"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option></select>
+      <select id="ov-1"></select>
       <span style="color:var(--mut);font-size:.8em">vs</span>
-      <select id="ov-2"><option>ETHUSDT</option><option>BTCUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option></select>
+      <select id="ov-2"></select>
       <select id="ov-d"><option value="90">3M</option><option value="180" selected>6M</option><option value="365">1Y</option></select>
       <button class="go" onclick="lov()">Compare</button><div class="sp"></div><span class="st" id="ov-st">—</span>
     </div>
@@ -135,7 +135,7 @@
   <div class="pnl" id="p-wrb">
     <div class="ctl">
       <select class="mkt" id="wrb-m" onchange="umkt('wrb')"><option value="crypto">🔗 Crypto</option><option value="us_stock">🇺🇸 US Stock</option><option value="a_stock">🇨🇳 A-Share</option><option value="commodity">🥇 Gold/Silver</option></select>
-      <select id="wrb-s"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option></select>
+      <select id="wrb-s"></select>
       <select id="wrb-t"><option value="1h">1H</option><option value="4h">4H</option><option value="1d" selected>1D</option></select>
       <select id="wrb-l"><option>100</option><option selected>150</option><option>200</option></select>
       <button class="go" onclick="lwrb()">Analyze</button><div class="sp"></div><span class="st" id="wrb-st">—</span>
@@ -156,10 +156,10 @@
   <div class="pnl" id="p-corr">
     <div class="ctl">
       <select class="mkt" id="cr-m" onchange="umktCorr()"><option value="crypto">🔗 Crypto</option><option value="cross">🌐 Cross-Market</option></select>
-      <select id="cr-a1"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option><option>DOGEUSDT</option><option>XRPUSDT</option><option>ADAUSDT</option><option>AVAXUSDT</option></select>
-      <select id="cr-a2"><option>ETHUSDT</option><option>BTCUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option><option>DOGEUSDT</option><option>XRPUSDT</option><option>ADAUSDT</option><option>AVAXUSDT</option></select>
-      <select id="cr-a3"><option>SOLUSDT</option><option>BTCUSDT</option><option>ETHUSDT</option><option>BNBUSDT</option><option>DOGEUSDT</option><option>XRPUSDT</option><option>ADAUSDT</option><option>AVAXUSDT</option></select>
-      <select id="cr-a4"><option value="">— none —</option><option>BNBUSDT</option><option>DOGEUSDT</option><option>XRPUSDT</option><option>ADAUSDT</option><option>AVAXUSDT</option><option>BTCUSDT</option><option>ETHUSDT</option></select>
+      <select id="cr-a1"></select>
+      <select id="cr-a2"></select>
+      <select id="cr-a3"></select>
+      <select id="cr-a4"></select>
       <select id="cr-d"><option value="60">60 days</option><option value="90" selected>90 days</option><option value="180">180 days</option></select>
       <button class="go" onclick="lcr()">Calculate</button><div class="sp"></div><span class="st" id="cr-st">Pearson correlation from daily returns</span>
     </div>
@@ -254,12 +254,12 @@ function umktCorr(){
 const m=$('cr-m').value;
 const sels=['cr-a1','cr-a2','cr-a3','cr-a4'];
 if(m==='cross'){
-  const cross=[{v:'AAPL',l:'AAPL'},{v:'NVDA',l:'NVDA'},{v:'XAUUSD',l:'Gold'},{v:'SPY',l:'S&P500'},{v:'600519',l:'茅台'},{v:'QQQ',l:'NASDAQ'}];
+  const cross=[{v:'AAPL',l:'AAPL'},{v:'NVDA',l:'NVDA'},{v:'XAUUSD',l:'Gold'},{v:'SPY',l:'S&P 500'},{v:'600519',l:'贵州茅台'},{v:'QQQ',l:'NASDAQ'}];
   sels.forEach((id,i)=>{const s=$(id);s.innerHTML=(i===3?'<option value="">— none —</option>':'')+cross.map((c,j)=>`<option value="${c.v}"${j===i?' selected':''}>${c.l}</option>`).join('')})
 }else{
-  const crypto=MKT_SYMS.crypto;
+  const crSyms=[...MKT_SYMS.crypto,{v:'DOGEUSDT',l:'DOGE/USDT'},{v:'XRPUSDT',l:'XRP/USDT'},{v:'ADAUSDT',l:'ADA/USDT'},{v:'AVAXUSDT',l:'AVAX/USDT'}];
   const defs=['BTCUSDT','ETHUSDT','SOLUSDT',''];
-  sels.forEach((id,i)=>{const s=$(id);s.innerHTML=(i===3?'<option value="">— none —</option>':'')+crypto.map(c=>`<option value="${c.v}"${c.v===defs[i]?' selected':''}>${c.l}</option>`).join('')})
+  sels.forEach((id,i)=>{const s=$(id);s.innerHTML=(i===3?'<option value="">— none —</option>':'')+crSyms.map(c=>`<option value="${c.v}"${c.v===defs[i]?' selected':''}>${c.l}</option>`).join('')})
 }}
 
 // Fetch data: crypto=live Binance, others=sample SD
@@ -572,6 +572,30 @@ $('wrb-st').textContent=`WRB: ${w.wrb.length} | Gaps: ${w.gaps.length} (Active: 
 }catch(e){$('wrb-st').textContent='Error: '+e.message}}
 
 function $(id){return document.getElementById(id)}
+
+// Fill all symbol selects on init
+function initSelects(){
+// Single-symbol tabs: kl, vp, in, wrb
+['kl','vp','in','wrb'].forEach(p=>{
+  const m=$(p+'-m')?.value||'crypto';
+  const syms=MKT_SYMS[m]||MKT_SYMS.crypto;
+  const sel=$(p+'-s');
+  if(sel)sel.innerHTML=syms.map(s=>`<option value="${s.v}">${s.l}</option>`).join('');
+});
+// Overlay: ov-1, ov-2
+const ovM=$('ov-m')?.value||'crypto';
+const ovSyms=MKT_SYMS[ovM]||MKT_SYMS.crypto;
+$('ov-1').innerHTML=ovSyms.map((s,i)=>`<option value="${s.v}"${i===0?' selected':''}>${s.l}</option>`).join('');
+$('ov-2').innerHTML=ovSyms.map((s,i)=>`<option value="${s.v}"${i===1?' selected':''}>${s.l}</option>`).join('');
+// Correlation: cr-a1..a4 — crypto with extra choices
+const crSyms=[...MKT_SYMS.crypto,{v:'DOGEUSDT',l:'DOGE/USDT'},{v:'XRPUSDT',l:'XRP/USDT'},{v:'ADAUSDT',l:'ADA/USDT'},{v:'AVAXUSDT',l:'AVAX/USDT'}];
+const crDefs=['BTCUSDT','ETHUSDT','SOLUSDT',''];
+['cr-a1','cr-a2','cr-a3','cr-a4'].forEach((id,i)=>{
+  const none=i===3?'<option value="">— none —</option>':'';
+  $(id).innerHTML=none+crSyms.map(s=>`<option value="${s.v}"${s.v===crDefs[i]?' selected':''}>${s.l}</option>`).join('');
+});
+}
+initSelects();
 // Auto-load first tab
 lkl();
 </script>
