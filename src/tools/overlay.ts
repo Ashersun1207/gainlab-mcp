@@ -4,7 +4,7 @@ import { getKlines } from "../data/index.js";
 import { buildOverlayOption, type OverlaySeriesData } from "../render/charts/overlay.js";
 import { renderToPNG, renderToHTML } from "../render/engine.js";
 
-const OverlaySchema = z.object({
+const OverlaySchema = {
   assets: z
     .array(
       z.object({
@@ -15,7 +15,8 @@ const OverlaySchema = z.object({
       })
     )
     .min(2, "At least 2 assets required")
-    .max(6, "Maximum 6 assets allowed"),
+    .max(6, "Maximum 6 assets allowed")
+    .describe("List of 2-6 assets to overlay"),
   timeframe: z
     .enum(["1d", "1w", "1M"])
     .default("1d")
@@ -32,9 +33,7 @@ const OverlaySchema = z.object({
     .enum(["interactive", "image"])
     .default("interactive")
     .describe("Output format"),
-});
-
-type OverlayParams = z.infer<typeof OverlaySchema>;
+};
 
 function periodToLimit(period: string): number {
   const periodMap: Record<string, number> = {
@@ -51,7 +50,7 @@ export function registerOverlayTool(server: McpServer) {
     "gainlab_overlay",
     "Multi-asset overlay chart with optional normalization. Compare 2-6 assets across different markets.",
     OverlaySchema,
-    async (params: OverlayParams) => {
+    async (params) => {
       try {
         const limit = periodToLimit(params.period);
 
@@ -90,7 +89,7 @@ export function registerOverlayTool(server: McpServer) {
         const seriesData: OverlaySeriesData[] = results.map((result) => ({
           symbol: result.symbol,
           market: result.market,
-          dates: result.klines.map((k) => k.time),
+          dates: result.klines.map((k) => k.timestamp),
           values: result.klines.map((k) => k.close),
         }));
 
