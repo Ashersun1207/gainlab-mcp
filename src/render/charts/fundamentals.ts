@@ -11,12 +11,32 @@ interface FundamentalsChartConfig {
 
 // Metric mapping: user-friendly names → data keys
 const METRIC_MAP: Record<string, { label: string; dataKeys: string[]; format: "currency" | "ratio" | "number" }> = {
+  // Income Statement
   revenue: { label: "Revenue", dataKeys: ["revenue", "totalRevenue"], format: "currency" },
   net_income: { label: "Net Income", dataKeys: ["netIncome"], format: "currency" },
   gross_margin: { label: "Gross Margin", dataKeys: ["grossProfitRatio"], format: "ratio" },
   operating_margin: { label: "Operating Margin", dataKeys: ["operatingIncomeRatio"], format: "ratio" },
   eps: { label: "EPS", dataKeys: ["eps"], format: "number" },
   ebitda: { label: "EBITDA", dataKeys: ["ebitda"], format: "currency" },
+  
+  // Cash Flow
+  operating_cash_flow: { label: "Operating Cash Flow", dataKeys: ["operatingCashFlow", "totalCashFromOperatingActivities"], format: "currency" },
+  free_cash_flow: { label: "Free Cash Flow", dataKeys: ["freeCashFlow"], format: "currency" },
+  capex: { label: "Capital Expenditure", dataKeys: ["capitalExpenditure", "capitalExpenditures"], format: "currency" },
+  
+  // Valuation Ratios
+  pe_ratio: { label: "P/E Ratio", dataKeys: ["peRatio"], format: "number" },
+  pb_ratio: { label: "P/B Ratio", dataKeys: ["pbRatio"], format: "number" },
+  ev_ebitda: { label: "EV/EBITDA", dataKeys: ["evToEbitda"], format: "number" },
+  
+  // Profitability
+  roe: { label: "ROE", dataKeys: ["returnOnEquity"], format: "ratio" },
+  roa: { label: "ROA", dataKeys: ["returnOnAssets"], format: "ratio" },
+  profit_margin: { label: "Profit Margin", dataKeys: ["profitMargin", "netIncomeRatio", "netProfitMargin"], format: "ratio" },
+  
+  // Health
+  current_ratio: { label: "Current Ratio", dataKeys: ["currentRatio"], format: "number" },
+  dividend_yield: { label: "Dividend Yield", dataKeys: ["dividendYield"], format: "ratio" },
 };
 
 function formatLargeNumber(n: number): string {

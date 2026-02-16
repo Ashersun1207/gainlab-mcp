@@ -1,24 +1,46 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { getFundamentals } from "../data/index.js";
+import { getFundamentals, getCashFlow, getKeyMetrics } from "../data/index.js";
 import { buildFundamentalsOption } from "../render/charts/fundamentals.js";
 import { renderToPNG, renderToHTML } from "../render/engine.js";
+import type { FundamentalData } from "../data/types.js";
 
 const FundamentalsSchema = {
   symbols: z.array(z.string()).min(1).max(5).describe("Stock symbols (1-5 companies for comparison)"),
   market: z.enum(["us_stock", "a_stock"]).describe("Market type (fundamentals only available for stocks)"),
   metrics: z.array(z.enum([
-    "revenue", "net_income", "gross_margin", "operating_margin",
-    "eps", "ebitda",
+    // Income Statement (existing)
+    "revenue", "net_income", "gross_margin", "operating_margin", "eps", "ebitda",
+    // Cash Flow (new)
+    "operating_cash_flow", "free_cash_flow", "capex",
+    // Valuation ratios (new - snapshot, not time series)
+    "pe_ratio", "pb_ratio", "ev_ebitda",
+    // Profitability (new)
+    "roe", "roa", "profit_margin",
+    // Health (new)
+    "current_ratio", "dividend_yield",
   ])).min(1).describe("Fundamental metrics to display"),
   period: z.enum(["annual", "quarter"]).default("annual").describe("Reporting period"),
   years: z.number().min(1).max(10).default(5).describe("Number of years/quarters of historical data"),
   format: z.enum(["interactive", "image"]).default("interactive").describe("Output format: interactive HTML or PNG image"),
 };
 
-// Available metrics mapping (only those supported by data layer)
-const AVAILABLE_METRICS = new Set([
+// Metric categories for smart data fetching
+const INCOME_METRICS = new Set([
   "revenue", "net_income", "gross_margin", "operating_margin", "eps", "ebitda"
+]);
+const CASH_FLOW_METRICS = new Set([
+  "operating_cash_flow", "free_cash_flow", "capex"
+]);
+const KEY_METRICS = new Set([
+  "pe_ratio", "pb_ratio", "ev_ebitda", "roe", "roa", "profit_margin", "current_ratio", "dividend_yield"
+]);
+
+// Available metrics mapping (all supported metrics)
+const AVAILABLE_METRICS = new Set([
+  ...INCOME_METRICS,
+  ...CASH_FLOW_METRICS,
+  ...KEY_METRICS,
 ]);
 
 export function registerFundamentalsTool(server: McpServer) {
@@ -59,12 +81,46 @@ export function registerFundamentalsTool(server: McpServer) {
           warningMessage = `⚠️ Unsupported metrics skipped: ${unsupportedMetrics.join(", ")}\n`;
         }
 
+        // Determine which data sources are needed based on requested metrics
+        const needsIncome = supportedMetrics.some(m => INCOME_METRICS.has(m));
+        const needsCashFlow = supportedMetrics.some(m => CASH_FLOW_METRICS.has(m));
+        const needsKeyMetrics = supportedMetrics.some(m => KEY_METRICS.has(m));
+
         // Fetch data for all symbols in parallel
-        const dataMap = new Map();
+        const dataMap = new Map<string, FundamentalData[]>();
         const fetchPromises = params.symbols.map(async (symbol) => {
           try {
-            const data = await getFundamentals(symbol, params.market, params.period, params.years);
-            dataMap.set(symbol, data);
+            // Fetch all needed data sources in parallel
+            const fetchTasks: Promise<FundamentalData[]>[] = [];
+            
+            if (needsIncome) {
+              fetchTasks.push(getFundamentals(symbol, params.market, params.period, params.years));
+            }
+            if (needsCashFlow) {
+              fetchTasks.push(getCashFlow(symbol, params.market, params.period, params.years));
+            }
+            if (needsKeyMetrics) {
+              fetchTasks.push(getKeyMetrics(symbol, params.market, params.period, params.years));
+            }
+            
+            const results = await Promise.all(fetchTasks);
+            
+            // Merge all data by period
+            const mergedData = new Map<string, FundamentalData>();
+            
+            for (const dataArray of results) {
+              for (const item of dataArray) {
+                if (!mergedData.has(item.period)) {
+                  mergedData.set(item.period, { period: item.period, metrics: {} });
+                }
+                // Merge metrics
+                Object.assign(mergedData.get(item.period)!.metrics, item.metrics);
+              }
+            }
+            
+            // Convert map back to array
+            const mergedArray = Array.from(mergedData.values());
+            dataMap.set(symbol, mergedArray);
           } catch (error: any) {
             console.error(`Failed to fetch fundamentals for ${symbol}:`, error.message);
             dataMap.set(symbol, []);  // Empty data for failed symbols
