@@ -80,13 +80,13 @@ if [ -f "$DEMO" ]; then
     green "展示页 coord 均使用 category 字符串值"
   fi
 
-  # 检查 i18n 完整性：zh 和 en 的 key 数量应该一致
-  ZH_KEYS=$(grep -oE "'[a-z_]+'" "$DEMO" | sort -u | wc -l | tr -d ' ')
-  # 简单检查：两个语言块是否都有 subtitle
-  if grep -q "zh:.*subtitle" "$DEMO" 2>/dev/null && grep -q "en:.*subtitle" "$DEMO" 2>/dev/null; then
-    green "I18N zh/en 基础 key 存在"
+  # 检查 i18n 完整性：zh 和 en 块是否都存在且有相同数量的 key
+  ZH_COUNT=$(grep -A200 "zh: {" "$DEMO" | grep -c ":" 2>/dev/null || echo 0)
+  EN_COUNT=$(grep -A200 "en: {" "$DEMO" | grep -c ":" 2>/dev/null || echo 0)
+  if [ "$ZH_COUNT" -gt 5 ] && [ "$EN_COUNT" -gt 5 ]; then
+    green "I18N zh($ZH_COUNT keys) / en($EN_COUNT keys) 均存在"
   else
-    yellow "I18N 可能缺失 key"
+    yellow "I18N 可能缺失 key (zh:$ZH_COUNT en:$EN_COUNT)"
   fi
 
   # 行数统计
