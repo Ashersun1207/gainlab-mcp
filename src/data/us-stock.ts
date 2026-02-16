@@ -1,5 +1,5 @@
 import { proxyFetch } from "../utils/fetch.js";
-import { OHLCV, FundamentalData } from "./types.js";
+import { OHLCV, FundamentalData, DCFData } from "./types.js";
 
 const FMP_BASE_URL = "https://financialmodelingprep.com";
 
@@ -199,4 +199,326 @@ export async function getUSStockFundamentals(
   });
   
   return fundamentals;
+}
+
+interface FMPCashFlowStatement {
+  date: string;
+  symbol: string;
+  reportedCurrency: string;
+  cik: string;
+  fillingDate: string;
+  acceptedDate: string;
+  calendarYear: string;
+  period: string;
+  netCashProvidedByOperatingActivities?: number;
+  operatingCashFlow?: number;
+  freeCashFlow?: number;
+  capitalExpenditure?: number;
+  netIncome?: number;
+  stockBasedCompensation?: number;
+  commonDividendsPaid?: number;
+  commonStockRepurchased?: number;
+}
+
+/**
+ * Get US stock cash flow data from FMP
+ * @param symbol Stock symbol (e.g., "AAPL")
+ * @param period "annual" or "quarter"
+ * @param limit Number of periods to return (default: 5)
+ * @returns Array of FundamentalData
+ */
+export async function getUSStockCashFlow(
+  symbol: string,
+  period: "annual" | "quarter" = "annual",
+  limit: number = 5
+): Promise<FundamentalData[]> {
+  const apiKey = getApiKey();
+  const url = `${FMP_BASE_URL}/stable/cash-flow-statement?symbol=${symbol}&period=${period}&limit=${limit}&apikey=${apiKey}`;
+  
+  const response = await proxyFetch(url);
+  
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(
+      `FMP API error (${response.status}): ${text}`
+    );
+  }
+  
+  const data: FMPCashFlowStatement[] = await response.json();
+  
+  if (!Array.isArray(data)) {
+    throw new Error("FMP API returned unexpected format (expected array)");
+  }
+  
+  const cashFlowData: FundamentalData[] = data.map((item) => {
+    const year = item.date.split("-")[0];
+    
+    let periodStr: string;
+    if (period === "annual") {
+      periodStr = year;
+    } else {
+      const quarterMatch = item.period.match(/Q?(\d)/);
+      const quarter = quarterMatch ? quarterMatch[1] : "1";
+      periodStr = `${year}-Q${quarter}`;
+    }
+    
+    return {
+      period: periodStr,
+      metrics: {
+        operatingCashFlow: item.netCashProvidedByOperatingActivities ?? item.operatingCashFlow ?? null,
+        freeCashFlow: item.freeCashFlow ?? null,
+        capitalExpenditure: item.capitalExpenditure ? Math.abs(item.capitalExpenditure) : null,
+        netIncome: item.netIncome ?? null,
+        stockBasedCompensation: item.stockBasedCompensation ?? null,
+        dividendsPaid: item.commonDividendsPaid ? Math.abs(item.commonDividendsPaid) : null,
+        shareRepurchase: item.commonStockRepurchased ? Math.abs(item.commonStockRepurchased) : null,
+      },
+    };
+  });
+  
+  return cashFlowData;
+}
+
+interface FMPKeyMetrics {
+  date: string;
+  symbol: string;
+  period: string;
+  marketCap?: number;
+  enterpriseValue?: number;
+  evToEBITDA?: number;
+  returnOnEquity?: number;
+  returnOnAssets?: number;
+  currentRatio?: number;
+  netDebtToEBITDA?: number;
+  earningsYield?: number;
+  freeCashFlowYield?: number;
+  dividendYield?: number;
+}
+
+interface FMPRatios {
+  date: string;
+  symbol: string;
+  period: string;
+  priceToEarningsRatio?: number;
+  priceToBookRatio?: number;
+  priceToSalesRatio?: number;
+  priceToFreeCashFlowRatio?: number;
+  grossProfitMargin?: number;
+  netProfitMargin?: number;
+  operatingProfitMargin?: number;
+  debtToEquityRatio?: number;
+  interestCoverageRatio?: number;
+}
+
+/**
+ * Get US stock key metrics from FMP
+ * @param symbol Stock symbol (e.g., "AAPL")
+ * @param period "annual" or "quarter"
+ * @param limit Number of periods to return (default: 5)
+ * @returns Array of FundamentalData
+ */
+export async function getUSStockKeyMetrics(
+  symbol: string,
+  period: "annual" | "quarter" = "annual",
+  limit: number = 5
+): Promise<FundamentalData[]> {
+  const apiKey = getApiKey();
+  
+  // Fetch key metrics
+  const metricsUrl = `${FMP_BASE_URL}/stable/key-metrics?symbol=${symbol}&period=${period}&limit=${limit}&apikey=${apiKey}`;
+  const metricsResponse = await proxyFetch(metricsUrl);
+  
+  if (!metricsResponse.ok) {
+    const text = await metricsResponse.text();
+    throw new Error(
+      `FMP API error (${metricsResponse.status}): ${text}`
+    );
+  }
+  
+  const metricsData: FMPKeyMetrics[] = await metricsResponse.json();
+  
+  if (!Array.isArray(metricsData)) {
+    throw new Error("FMP API returned unexpected format (expected array)");
+  }
+  
+  // Fetch ratios
+  const ratiosUrl = `${FMP_BASE_URL}/stable/ratios?symbol=${symbol}&period=${period}&limit=${limit}&apikey=${apiKey}`;
+  const ratiosResponse = await proxyFetch(ratiosUrl);
+  
+  if (!ratiosResponse.ok) {
+    const text = await ratiosResponse.text();
+    throw new Error(
+      `FMP API error (${ratiosResponse.status}): ${text}`
+    );
+  }
+  
+  const ratiosData: FMPRatios[] = await ratiosResponse.json();
+  
+  if (!Array.isArray(ratiosData)) {
+    throw new Error("FMP API returned unexpected format (expected array)");
+  }
+  
+  // Merge metrics and ratios by date
+  const keyMetricsData: FundamentalData[] = metricsData.map((item) => {
+    const year = item.date.split("-")[0];
+    
+    let periodStr: string;
+    if (period === "annual") {
+      periodStr = year;
+    } else {
+      const quarterMatch = item.period.match(/Q?(\d)/);
+      const quarter = quarterMatch ? quarterMatch[1] : "1";
+      periodStr = `${year}-Q${quarter}`;
+    }
+    
+    // Find matching ratios data by date
+    const matchingRatio = ratiosData.find(r => r.date === item.date);
+    
+    return {
+      period: periodStr,
+      metrics: {
+        marketCap: item.marketCap ?? null,
+        enterpriseValue: item.enterpriseValue ?? null,
+        evToEbitda: item.evToEBITDA ?? null,
+        returnOnEquity: item.returnOnEquity ?? null,
+        returnOnAssets: item.returnOnAssets ?? null,
+        currentRatio: item.currentRatio ?? null,
+        debtToEbitda: item.netDebtToEBITDA ?? null,
+        earningsYield: item.earningsYield ?? null,
+        freeCashFlowYield: item.freeCashFlowYield ?? null,
+        dividendYield: item.dividendYield ?? matchingRatio?.priceToEarningsRatio ? 1 / matchingRatio.priceToEarningsRatio : null,
+        peRatio: matchingRatio?.priceToEarningsRatio ?? null,
+        pbRatio: matchingRatio?.priceToBookRatio ?? null,
+        psRatio: matchingRatio?.priceToSalesRatio ?? null,
+        priceToFreeCashFlow: matchingRatio?.priceToFreeCashFlowRatio ?? null,
+        grossProfitMargin: matchingRatio?.grossProfitMargin ?? null,
+        netProfitMargin: matchingRatio?.netProfitMargin ?? null,
+        operatingProfitMargin: matchingRatio?.operatingProfitMargin ?? null,
+        debtToEquity: matchingRatio?.debtToEquityRatio ?? null,
+        interestCoverage: matchingRatio?.interestCoverageRatio ?? null,
+      },
+    };
+  });
+  
+  return keyMetricsData;
+}
+
+interface FMPDCFResponse {
+  symbol: string;
+  date: string;
+  dcf: number;
+  "Stock Price": number;
+}
+
+/**
+ * Get US stock DCF (Discounted Cash Flow) valuation from FMP
+ * @param symbol Stock symbol (e.g., "AAPL")
+ * @returns DCFData
+ */
+export async function getUSStockDCF(symbol: string): Promise<DCFData> {
+  const apiKey = getApiKey();
+  const url = `${FMP_BASE_URL}/stable/discounted-cash-flow?symbol=${symbol}&apikey=${apiKey}`;
+  
+  const response = await proxyFetch(url);
+  
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(
+      `FMP API error (${response.status}): ${text}`
+    );
+  }
+  
+  const data: FMPDCFResponse[] = await response.json();
+  
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new Error("FMP API returned unexpected format (expected non-empty array)");
+  }
+  
+  const dcfItem = data[0];
+  
+  return {
+    symbol: dcfItem.symbol,
+    date: dcfItem.date,
+    dcf: dcfItem.dcf,
+    stockPrice: dcfItem["Stock Price"],
+  };
+}
+
+interface FMPAnalystEstimates {
+  date: string;
+  symbol: string;
+  estimatedRevenueAvg?: number;
+  estimatedRevenueLow?: number;
+  estimatedRevenueHigh?: number;
+  estimatedEpsAvg?: number;
+  estimatedEpsLow?: number;
+  estimatedEpsHigh?: number;
+  estimatedEbitdaAvg?: number;
+  estimatedNetIncomeAvg?: number;
+  numberAnalystEstimatedRevenue?: number;
+  numberAnalystsEstimatedEps?: number;
+}
+
+/**
+ * Get US stock analyst estimates from FMP
+ * @param symbol Stock symbol (e.g., "AAPL")
+ * @param period "annual" or "quarter"
+ * @param limit Number of periods to return (default: 3)
+ * @returns Array of FundamentalData
+ */
+export async function getUSStockAnalystEstimates(
+  symbol: string,
+  period: "annual" | "quarter" = "annual",
+  limit: number = 3
+): Promise<FundamentalData[]> {
+  const apiKey = getApiKey();
+  const url = `${FMP_BASE_URL}/stable/analyst-estimates?symbol=${symbol}&period=${period}&limit=${limit}&apikey=${apiKey}`;
+  
+  const response = await proxyFetch(url);
+  
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(
+      `FMP API error (${response.status}): ${text}`
+    );
+  }
+  
+  const data: FMPAnalystEstimates[] = await response.json();
+  
+  if (!Array.isArray(data)) {
+    throw new Error("FMP API returned unexpected format (expected array)");
+  }
+  
+  const estimatesData: FundamentalData[] = data.map((item) => {
+    const year = item.date.split("-")[0];
+    
+    let periodStr: string;
+    if (period === "annual") {
+      periodStr = year;
+    } else {
+      // For analyst estimates, the date format might be different
+      // Try to extract quarter from date (e.g., "2024-03-31" → Q1)
+      const month = parseInt(item.date.split("-")[1]);
+      const quarter = Math.ceil(month / 3);
+      periodStr = `${year}-Q${quarter}`;
+    }
+    
+    return {
+      period: periodStr,
+      metrics: {
+        revenueAvg: item.estimatedRevenueAvg ?? null,
+        revenueLow: item.estimatedRevenueLow ?? null,
+        revenueHigh: item.estimatedRevenueHigh ?? null,
+        epsAvg: item.estimatedEpsAvg ?? null,
+        epsLow: item.estimatedEpsLow ?? null,
+        epsHigh: item.estimatedEpsHigh ?? null,
+        ebitdaAvg: item.estimatedEbitdaAvg ?? null,
+        netIncomeAvg: item.estimatedNetIncomeAvg ?? null,
+        numAnalystsRevenue: item.numberAnalystEstimatedRevenue ?? null,
+        numAnalystsEps: item.numberAnalystsEstimatedEps ?? null,
+      },
+    };
+  });
+  
+  return estimatesData;
 }

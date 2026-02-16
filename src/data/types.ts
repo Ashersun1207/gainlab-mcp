@@ -12,6 +12,13 @@ export interface FundamentalData {
   metrics: Record<string, number | null>;
 }
 
+export interface DCFData {
+  symbol: string;
+  date: string;
+  dcf: number;
+  stockPrice: number;
+}
+
 export interface CalendarEvent {
   date: string;         // "2026-02-15"
   type: string;

@@ -1,7 +1,19 @@
-import { OHLCV, FundamentalData, Market, Timeframe } from "./types.js";
+import { OHLCV, FundamentalData, DCFData, Market, Timeframe } from "./types.js";
 import { getCryptoKlines } from "./crypto.js";
-import { getUSStockKlines, getUSStockFundamentals } from "./us-stock.js";
-import { getAStockKlines, getAStockFundamentals } from "./a-stock.js";
+import { 
+  getUSStockKlines, 
+  getUSStockFundamentals,
+  getUSStockCashFlow,
+  getUSStockKeyMetrics,
+  getUSStockDCF,
+  getUSStockAnalystEstimates
+} from "./us-stock.js";
+import { 
+  getAStockKlines, 
+  getAStockFundamentals,
+  getAStockCashFlow,
+  getAStockKeyMetrics
+} from "./a-stock.js";
 import { getCommodityKlines } from "./commodity.js";
 
 export async function getKlines(
@@ -61,4 +73,78 @@ export async function getFundamentals(
   }
 }
 
-export { type OHLCV, type FundamentalData, type Market, type Timeframe } from "./types.js";
+export async function getCashFlow(
+  symbol: string,
+  market: Market,
+  period: "annual" | "quarter" = "annual",
+  limit: number = 5
+): Promise<FundamentalData[]> {
+  switch (market) {
+    case "us_stock":
+      return getUSStockCashFlow(symbol, period, limit);
+    case "a_stock":
+      return getAStockCashFlow(symbol, period, limit);
+    case "crypto":
+    case "commodity":
+      throw new Error(`Cash flow data not supported for market: ${market}`);
+    default:
+      throw new Error(`Unknown market: ${market}`);
+  }
+}
+
+export async function getKeyMetrics(
+  symbol: string,
+  market: Market,
+  period: "annual" | "quarter" = "annual",
+  limit: number = 5
+): Promise<FundamentalData[]> {
+  switch (market) {
+    case "us_stock":
+      return getUSStockKeyMetrics(symbol, period, limit);
+    case "a_stock":
+      // A-stock key metrics returns a single item, wrap in array
+      const metrics = await getAStockKeyMetrics(symbol);
+      return [metrics];
+    case "crypto":
+    case "commodity":
+      throw new Error(`Key metrics data not supported for market: ${market}`);
+    default:
+      throw new Error(`Unknown market: ${market}`);
+  }
+}
+
+export async function getDCF(
+  symbol: string,
+  market: Market
+): Promise<DCFData> {
+  switch (market) {
+    case "us_stock":
+      return getUSStockDCF(symbol);
+    case "a_stock":
+    case "crypto":
+    case "commodity":
+      throw new Error("DCF only available for US stocks");
+    default:
+      throw new Error(`Unknown market: ${market}`);
+  }
+}
+
+export async function getAnalystEstimates(
+  symbol: string,
+  market: Market,
+  period: "annual" | "quarter" = "annual",
+  limit: number = 3
+): Promise<FundamentalData[]> {
+  switch (market) {
+    case "us_stock":
+      return getUSStockAnalystEstimates(symbol, period, limit);
+    case "a_stock":
+    case "crypto":
+    case "commodity":
+      throw new Error(`Analyst estimates not supported for market: ${market}`);
+    default:
+      throw new Error(`Unknown market: ${market}`);
+  }
+}
+
+export { type OHLCV, type FundamentalData, type DCFData, type Market, type Timeframe } from "./types.js";

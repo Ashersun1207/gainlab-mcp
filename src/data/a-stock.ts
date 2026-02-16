@@ -147,3 +147,141 @@ export async function getAStockFundamentals(
   
   return fundamentalData;
 }
+
+/**
+ * Get A-stock cash flow data from EODHD
+ * @param symbol Stock symbol (e.g., "600519" or "600519.SHG")
+ * @param period "annual" or "quarter"
+ * @param limit Number of periods to return (default: 5)
+ * @returns Array of FundamentalData
+ */
+export async function getAStockCashFlow(
+  symbol: string,
+  period: "annual" | "quarter" = "annual",
+  limit: number = 5
+): Promise<FundamentalData[]> {
+  const apiKey = getApiKey();
+  const eodhSymbol = normalizeSymbol(symbol);
+  
+  const url = `${EODHD_BASE_URL}/fundamentals/${eodhSymbol}?api_token=${apiKey}&fmt=json`;
+  const response = await proxyFetch(url);
+  
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`EODHD API error (${response.status}): ${text}`);
+  }
+  
+  const data = await response.json();
+  
+  const financials = data?.Financials;
+  if (!financials) {
+    throw new Error("No Financials section found in EODHD response");
+  }
+  
+  const cashFlow = period === "annual" 
+    ? financials.Cash_Flow?.yearly 
+    : financials.Cash_Flow?.quarterly;
+  
+  if (!cashFlow) {
+    throw new Error(`No ${period} Cash_Flow data found`);
+  }
+  
+  // Convert EODHD format to FundamentalData[]
+  const entries = Object.entries(cashFlow)
+    .sort(([dateA], [dateB]) => dateB.localeCompare(dateA))
+    .slice(0, limit);
+  
+  const cashFlowData: FundamentalData[] = entries.map(([date, metrics]: [string, any]) => {
+    const year = date.split("-")[0];
+    let periodStr: string;
+    
+    if (period === "quarter") {
+      const month = parseInt(date.split("-")[1]);
+      const quarter = Math.ceil(month / 3);
+      periodStr = `${year}-Q${quarter}`;
+    } else {
+      periodStr = year;
+    }
+    
+    // Parse string values to numbers
+    const metricsRecord: Record<string, number | null> = {
+      operatingCashFlow: metrics.totalCashFromOperatingActivities 
+        ? parseFloat(metrics.totalCashFromOperatingActivities) 
+        : null,
+      freeCashFlow: metrics.freeCashFlow 
+        ? parseFloat(metrics.freeCashFlow) 
+        : null,
+      capitalExpenditure: metrics.capitalExpenditures 
+        ? Math.abs(parseFloat(metrics.capitalExpenditures)) 
+        : null,
+      dividendsPaid: metrics.dividendsPaid 
+        ? Math.abs(parseFloat(metrics.dividendsPaid)) 
+        : null,
+      netIncome: metrics.netIncome 
+        ? parseFloat(metrics.netIncome) 
+        : null,
+    };
+    
+    return {
+      period: periodStr,
+      metrics: metricsRecord,
+    };
+  });
+  
+  return cashFlowData;
+}
+
+/**
+ * Get A-stock key metrics from EODHD
+ * @param symbol Stock symbol (e.g., "600519" or "600519.SHG")
+ * @returns Single FundamentalData with latest metrics
+ */
+export async function getAStockKeyMetrics(symbol: string): Promise<FundamentalData> {
+  const apiKey = getApiKey();
+  const eodhSymbol = normalizeSymbol(symbol);
+  
+  const url = `${EODHD_BASE_URL}/fundamentals/${eodhSymbol}?api_token=${apiKey}&fmt=json`;
+  const response = await proxyFetch(url);
+  
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`EODHD API error (${response.status}): ${text}`);
+  }
+  
+  const data = await response.json();
+  
+  const highlights = data?.Highlights;
+  const valuation = data?.Valuation;
+  
+  if (!highlights && !valuation) {
+    throw new Error("No Highlights or Valuation section found in EODHD response");
+  }
+  
+  // Parse string values to numbers
+  const metricsRecord: Record<string, number | null> = {
+    // From Highlights
+    peRatio: highlights?.PERatio ? parseFloat(highlights.PERatio) : null,
+    pegRatio: highlights?.PEGRatio ? parseFloat(highlights.PEGRatio) : null,
+    returnOnEquity: highlights?.ReturnOnEquityTTM ? parseFloat(highlights.ReturnOnEquityTTM) : null,
+    returnOnAssets: highlights?.ReturnOnAssetsTTM ? parseFloat(highlights.ReturnOnAssetsTTM) : null,
+    netProfitMargin: highlights?.ProfitMargin ? parseFloat(highlights.ProfitMargin) : null,
+    operatingProfitMargin: highlights?.OperatingMarginTTM ? parseFloat(highlights.OperatingMarginTTM) : null,
+    dividendYield: highlights?.DividendYield ? parseFloat(highlights.DividendYield) : null,
+    epsEstimateCurrentYear: highlights?.EPSEstimateCurrentYear ? parseFloat(highlights.EPSEstimateCurrentYear) : null,
+    epsEstimateNextYear: highlights?.EPSEstimateNextYear ? parseFloat(highlights.EPSEstimateNextYear) : null,
+    wallStreetTargetPrice: highlights?.WallStreetTargetPrice ? parseFloat(highlights.WallStreetTargetPrice) : null,
+    marketCap: highlights?.MarketCapitalization ? parseFloat(highlights.MarketCapitalization) : null,
+    
+    // From Valuation
+    trailingPE: valuation?.TrailingPE ? parseFloat(valuation.TrailingPE) : null,
+    forwardPE: valuation?.ForwardPE ? parseFloat(valuation.ForwardPE) : null,
+    pbRatio: valuation?.PriceBookMRQ ? parseFloat(valuation.PriceBookMRQ) : null,
+    psRatio: valuation?.PriceSalesTTM ? parseFloat(valuation.PriceSalesTTM) : null,
+    evToEbitda: valuation?.EnterpriseValueEbitda ? parseFloat(valuation.EnterpriseValueEbitda) : null,
+  };
+  
+  return {
+    period: "latest",
+    metrics: metricsRecord,
+  };
+}

@@ -18,7 +18,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/tools-6%20available-00d4aa" alt="Tools" />
-  <img src="https://img.shields.io/badge/tests-216%20passing-00d4aa" alt="Tests" />
+  <img src="https://img.shields.io/badge/tests-255%20passing-00d4aa" alt="Tests" />
   <img src="https://img.shields.io/badge/markets-crypto%20%7C%20US%20%7C%20A--shares%20%7C%20gold-5b8ff9" alt="Markets" />
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License" />
 </p>
@@ -230,6 +230,7 @@ src/
     ├── fetch.ts              # Proxy-aware HTTP client
     ├── ta.ts                 # Technical indicators (MA/EMA/RSI/MACD/BOLL/KDJ/VWAP/ATR)
     ├── volume-profile.ts     # Volume profile math (POC, Value Area)
+    ├── wrb.ts                # WRB/Hidden Gap detection (HG_PRO algorithm)
     ├── correlation.ts        # Pearson correlation + returns
     └── crypto-sectors.ts     # 120+ token → sector classification
 ```
@@ -275,7 +276,7 @@ Three-layer design (no framework lock-in):
 ## Testing
 
 ```bash
-pnpm test  # 216 tests across 45 suites
+pnpm test  # 255 tests across 52 suites
 ```
 
 Tests cover: all 6 tools, all 4 data markets, chart generation, technical indicators (9 types), volume profile math, correlation computation, crypto sector classification, rendering engine.
