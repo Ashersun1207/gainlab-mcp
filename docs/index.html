@@ -55,9 +55,9 @@
   <div class="sub">Agent's Eyes for Financial Charts</div>
   <div class="tag">Agents can analyze, but they can't draw charts. GainLab gives agents eyes.</div>
   <div class="stats">
-    <div class="s"><span class="d g"></span><span class="n">5</span><span class="l">tools</span></div>
+    <div class="s"><span class="d g"></span><span class="n">6</span><span class="l">tools</span></div>
     <div class="s"><span class="d b"></span><span class="n">4</span><span class="l">markets</span></div>
-    <div class="s"><span class="d y"></span><span class="n">158</span><span class="l">tests</span></div>
+    <div class="s"><span class="d y"></span><span class="n">216</span><span class="l">tests</span></div>
   </div>
 </div>
 
@@ -67,6 +67,8 @@
   <button class="tb" onclick="sw('indicators',this)">🔧 Indicators</button>
   <button class="tb" onclick="sw('overlay',this)">📈 Overlay</button>
   <button class="tb" onclick="sw('fundamentals',this)">📋 Fundamentals</button>
+  <button class="tb" onclick="sw('heatmap',this)">🔥 Heatmap</button>
+  <button class="tb" onclick="sw('corr',this)">🔗 Correlation</button>
 </div>
 
 <div class="demo">
@@ -115,6 +117,28 @@
     <div class="ctl"><span class="st">Fundamentals require API keys — showing sample data (AAPL vs MSFT vs GOOGL)</span></div>
     <div class="cw" id="c-fundamentals"></div>
   </div>
+
+  <div class="pnl" id="p-heatmap">
+    <div class="ctl">
+      <select id="hm-m"><option value="crypto" selected>Crypto</option></select>
+      <select id="hm-l"><option value="30">Top 30</option><option value="50" selected>Top 50</option><option value="100">Top 100</option></select>
+      <select id="hm-v"><option value="1000000" selected>Vol > $1M</option><option value="5000000">Vol > $5M</option><option value="10000000">Vol > $10M</option></select>
+      <button class="go" onclick="lhm()">Load</button><div class="sp"></div><span class="st" id="hm-st">Live from Binance — no API key needed</span>
+    </div>
+    <div class="cw" id="c-heatmap" style="height:580px"></div>
+  </div>
+
+  <div class="pnl" id="p-corr">
+    <div class="ctl">
+      <select id="cr-a1"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option><option>DOGEUSDT</option><option>XRPUSDT</option><option>ADAUSDT</option><option>AVAXUSDT</option></select>
+      <select id="cr-a2"><option>ETHUSDT</option><option>BTCUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option><option>DOGEUSDT</option><option>XRPUSDT</option><option>ADAUSDT</option><option>AVAXUSDT</option></select>
+      <select id="cr-a3"><option>SOLUSDT</option><option>BTCUSDT</option><option>ETHUSDT</option><option>BNBUSDT</option><option>DOGEUSDT</option><option>XRPUSDT</option><option>ADAUSDT</option><option>AVAXUSDT</option></select>
+      <select id="cr-a4"><option value="">— none —</option><option>BNBUSDT</option><option>DOGEUSDT</option><option>XRPUSDT</option><option>ADAUSDT</option><option>AVAXUSDT</option><option>BTCUSDT</option><option>ETHUSDT</option></select>
+      <select id="cr-d"><option value="60">60 days</option><option value="90" selected>90 days</option><option value="180">180 days</option></select>
+      <button class="go" onclick="lcr()">Calculate</button><div class="sp"></div><span class="st" id="cr-st">Pearson correlation from daily returns</span>
+    </div>
+    <div class="cw" id="c-corr" style="height:520px"></div>
+  </div>
 </div>
 
 <div class="code-s">
@@ -136,9 +160,11 @@
   <div class="ft"><div class="i">🔧</div><h4>Technical Indicators</h4><p>MA, EMA, RSI, MACD, Bollinger, KDJ. Dynamic multi-panel layout.</p><span class="tg lv">✅ live</span></div>
   <div class="ft"><div class="i">📈</div><h4>Multi-Asset Overlay</h4><p>Compare 2-6 assets. Normalized % change. Cross-market.</p><span class="tg lv">✅ live</span></div>
   <div class="ft"><div class="i">📋</div><h4>Fundamentals</h4><p>Revenue, margins, EPS. Peer comparison. US + A-shares.</p><span class="tg lv">✅ live</span></div>
-  <div class="ft"><div class="i">📅</div><h4>Financial Calendar</h4><p>Earnings, FOMC, CPI, token unlocks.</p><span class="tg sn">phase 3</span></div>
   <div class="ft"><div class="i">📊</div><h4>Volume Profile</h4><p>POC, Value Area, price-volume distribution. Interactive VP chart.</p><span class="tg lv">✅ live</span></div>
   <div class="ft"><div class="i">📉</div><h4>VWAP + ATR</h4><p>Institutional VWAP, Anchored VWAP, and ATR volatility.</p><span class="tg lv">✅ live</span></div>
+  <div class="ft"><div class="i">🔥</div><h4>Sector Heatmap</h4><p>Finviz-style treemap. Block size = volume, color = 24h change.</p><span class="tg lv">✅ live</span></div>
+  <div class="ft"><div class="i">🔗</div><h4>Correlation Matrix</h4><p>N×N Pearson correlation. Cross-market asset comparison.</p><span class="tg lv">✅ live</span></div>
+  <div class="ft"><div class="i">📅</div><h4>Financial Calendar</h4><p>Earnings, FOMC, CPI, token unlocks.</p><span class="tg sn">phase 3</span></div>
   <div class="ft"><div class="i">⚡</div><h4>Funding Rate</h4><p>Crypto perpetual rates across exchanges.</p><span class="tg sn">phase 3</span></div>
   <div class="ft"><div class="i">🔔</div><h4>Smart Alerts</h4><p>Price, event & indicator alerts.</p><span class="tg sn">phase 4</span></div>
 </div>
@@ -149,7 +175,7 @@
   │ MCP Protocol
   ▼
 @gainlab/mcp-server
-  ├── tools/    → 5 MCP tools (kline, volume-profile, indicators, overlay, fundamentals)
+  ├── tools/    → 6 MCP tools (kline, volume-profile, indicators, overlay, fundamentals, heatmap)
   ├── data/     → 4 markets (Binance · FMP · EODHD)
   ├── render/   → ECharts (interactive HTML + server-side PNG)
   └── utils/    → TA math (zero deps) + proxy-aware fetch</div>
@@ -283,6 +309,61 @@ $('ov-st').textContent=`${s1}: ${p1>=0?'+':''}${p1}% · ${s2}: ${p2>=0?'+':''}${
 function lfun(){const years=['2021','2022','2023','2024','2025'];
 const data={AAPL:{rev:[365.8,394.3,383.3,391.0,420.5],ni:[94.7,99.8,97.0,93.7,105.2]},MSFT:{rev:[168.1,198.3,211.9,245.1,277.0],ni:[61.3,72.7,72.4,88.1,102.3]},GOOGL:{rev:[257.6,282.8,307.4,350.0,381.0],ni:[76.0,59.9,73.8,100.7,112.5]}};
 ic('c-fundamentals').setOption({backgroundColor:B,animation:true,title:{text:'Revenue Comparison (Billion USD)',left:'center',textStyle:{color:T,fontSize:14,fontWeight:700}},tooltip:{trigger:'axis',backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T},formatter:function(p){let s=p[0].axisValue+'<br>';p.forEach(i=>{s+=`<span style="color:${i.color}">●</span> ${i.seriesName}: $${i.value}B<br>`});return s}},legend:{data:['AAPL','MSFT','GOOGL'],bottom:4,textStyle:{color:S,fontSize:10}},grid:{left:'8%',right:'4%',top:'14%',bottom:'14%'},xAxis:{type:'category',data:years,axisLine:{lineStyle:{color:G}},axisLabel:{color:S}},yAxis:{type:'value',splitLine:{lineStyle:{color:G}},axisLabel:{color:S,formatter:v=>'$'+v+'B'}},series:[{name:'AAPL',type:'bar',data:data.AAPL.rev,itemStyle:{color:P[0],borderRadius:[4,4,0,0]}},{name:'MSFT',type:'bar',data:data.MSFT.rev,itemStyle:{color:P[1],borderRadius:[4,4,0,0]}},{name:'GOOGL',type:'bar',data:data.GOOGL.rev,itemStyle:{color:P[3],borderRadius:[4,4,0,0]}}]},true)}
+
+// CRYPTO SECTORS MAP
+const CSEC={BTC:'Layer 1',ETH:'Layer 1',SOL:'Layer 1',ADA:'Layer 1',AVAX:'Layer 1',DOT:'Layer 1',NEAR:'Layer 1',SUI:'Layer 1',APT:'Layer 1',TON:'Layer 1',ATOM:'Layer 1',ICP:'Layer 1',ALGO:'Layer 1',HBAR:'Layer 1',FTM:'Layer 1',SEI:'Layer 1',TIA:'Layer 1',INJ:'Layer 1',KAS:'Layer 1',
+ARB:'Layer 2',OP:'Layer 2',MATIC:'Layer 2',POL:'Layer 2',STRK:'Layer 2',MANTA:'Layer 2',IMX:'Layer 2',MNT:'Layer 2',ZK:'Layer 2',
+UNI:'DeFi',AAVE:'DeFi',MKR:'DeFi',CRV:'DeFi',DYDX:'DeFi',COMP:'DeFi',SNX:'DeFi',SUSHI:'DeFi',LDO:'DeFi',PENDLE:'DeFi',JUP:'DeFi',CAKE:'DeFi',RUNE:'DeFi',ENA:'DeFi',
+FET:'AI',RENDER:'AI',TAO:'AI',AGIX:'AI',OCEAN:'AI',WLD:'AI',AKT:'AI',RNDR:'AI',
+AXS:'Gaming',SAND:'Gaming',MANA:'Gaming',GALA:'Gaming',ENJ:'Gaming',BEAM:'Gaming',PIXEL:'Gaming',RON:'Gaming',
+DOGE:'Meme',SHIB:'Meme',PEPE:'Meme',FLOKI:'Meme',WIF:'Meme',BONK:'Meme',NEIRO:'Meme',NOT:'Meme',DOGS:'Meme',BOME:'Meme',PEOPLE:'Meme',TURBO:'Meme',
+LINK:'Infra',GRT:'Infra',FIL:'Infra',AR:'Infra',THETA:'Infra',ANKR:'Infra',PYTH:'Infra',STX:'Infra',W:'Infra',
+BNB:'Exchange',OKB:'Exchange',CRO:'Exchange',GT:'Exchange',
+XRP:'Payment',XLM:'Payment',LTC:'Payment',BCH:'Payment'};
+const EXCL=new Set(['USDT','USDC','DAI','BUSD','TUSD','USDP','FDUSD','USDD','WBTC','WETH','STETH','CBETH','RETH','PAXG']);
+function cBase(s){const u=s.toUpperCase();if(u.endsWith('USDT'))return u.slice(0,-4);return u}
+function cChg(c){if(c>=5)return'#00d4aa';if(c>=2)return'#33b88a';if(c>=.5)return'#4a8a6a';if(c>-.5)return'#4a4a6a';if(c>-2)return'#8a4a5a';if(c>-5)return'#b83353';return'#ff4757'}
+
+// HEATMAP — Crypto Sector Treemap
+async function lhm(){$('hm-st').textContent='Loading from Binance...';
+try{const lim=+$('hm-l').value,minV=+$('hm-v').value;
+const res=await(await fetch('https://api.binance.com/api/v3/ticker/24hr')).json();
+let items=res.filter(t=>{if(!t.symbol.endsWith('USDT'))return false;const b=cBase(t.symbol);if(EXCL.has(b))return false;return parseFloat(t.quoteVolume||'0')>=minV}).map(t=>{const b=cBase(t.symbol);return{code:b,chg:parseFloat(t.priceChangePercent||'0'),vol:parseFloat(t.quoteVolume||'0'),price:parseFloat(t.lastPrice||'0'),sector:CSEC[b]||'Other'}}).sort((a,b)=>b.vol-a.vol).slice(0,lim);
+
+// Group by sector
+const sm=new Map();items.forEach(i=>{if(!sm.has(i.sector))sm.set(i.sector,[]);sm.get(i.sector).push(i)});
+const tree=[...sm.entries()].map(([sec,stocks])=>({name:sec,children:stocks.map(s=>({name:s.code,value:s.vol,itemStyle:{color:cChg(s.chg),borderColor:B,borderWidth:1},_d:{price:s.price,chg:s.chg,vol:s.vol,sector:s.sector}}))}));
+
+ic('c-heatmap').setOption({backgroundColor:B,title:{text:'Crypto Sector Heatmap (24h Change)',left:'center',top:8,textStyle:{color:T,fontSize:15,fontWeight:700}},
+tooltip:{formatter:i=>{const d=i.data?._d;if(!d)return'<b>'+i.name+'</b>';const s=d.chg>=0?'+':'';return`<b>${i.name}</b><br>Price: $${d.price.toLocaleString()}<br>Change: <span style="color:${d.chg>=0?U:D}">${s}${d.chg.toFixed(2)}%</span><br>24h Vol: $${(d.vol/1e6).toFixed(1)}M<br>${d.sector}`}},
+series:[{type:'treemap',data:tree,width:'94%',height:'84%',top:44,left:'center',roam:false,nodeClick:false,breadcrumb:{show:false},
+levels:[{itemStyle:{borderColor:'#333',borderWidth:0,gapWidth:2}},{itemStyle:{borderColor:'#555',borderWidth:2,gapWidth:2},upperLabel:{show:true,height:20,color:S,fontSize:11,fontWeight:'bold',backgroundColor:'transparent'}},{itemStyle:{borderColor:B,borderWidth:1,gapWidth:1},label:{show:true,formatter:p=>{const d=p.data?._d;if(!d)return p.name;const s=d.chg>=0?'+':'';return'{name|'+p.name+'}\n{chg|'+s+d.chg.toFixed(1)+'%}'},rich:{name:{fontSize:12,color:'#fff',fontWeight:'bold',lineHeight:16},chg:{fontSize:10,color:'#ddd',lineHeight:14}},align:'center',verticalAlign:'middle'}}]}]},true);
+$('hm-st').textContent=`${items.length} tokens · ${sm.size} sectors · live from Binance`}catch(e){$('hm-st').textContent='Error: '+e.message}}
+
+// CORRELATION MATRIX
+async function lcr(){$('cr-st').textContent='Calculating...';
+try{const syms=[...new Set([$('cr-a1').value,$('cr-a2').value,$('cr-a3').value].concat($('cr-a4').value?[$('cr-a4').value]:[]))];
+const days=+$('cr-d').value;const names=syms.map(s=>cBase(s));
+// Fetch daily klines for all
+const all=await Promise.all(syms.map(s=>fb(s,'1d',days)));
+// Compute daily log returns
+const rets=all.map(kl=>{const cl=kl.map(k=>+k[4]);const r=[];for(let i=1;i<cl.length;i++)r.push(cl[i-1]===0?0:Math.log(cl[i]/cl[i-1]));return r});
+// Align lengths
+const minLen=Math.min(...rets.map(r=>r.length));const aligned=rets.map(r=>r.slice(r.length-minLen));
+// Pearson correlation
+function pcorr(x,y){const n=x.length;let sx=0,sy=0,sxy=0,sx2=0,sy2=0;for(let i=0;i<n;i++){sx+=x[i];sy+=y[i];sxy+=x[i]*y[i];sx2+=x[i]*x[i];sy2+=y[i]*y[i]}const num=n*sxy-sx*sy;const den=Math.sqrt((n*sx2-sx*sx)*(n*sy2-sy*sy));return den===0?0:num/den}
+const n=syms.length;const mat=[];for(let i=0;i<n;i++){mat[i]=[];for(let j=0;j<n;j++){mat[i][j]=i===j?1:Math.round(pcorr(aligned[i],aligned[j])*1000)/1000}}
+// Build heatmap data [x, y, value]
+const hd=[];for(let i=0;i<n;i++)for(let j=0;j<n;j++)hd.push([j,n-1-i,mat[i][j]]);
+
+ic('c-corr').setOption({backgroundColor:B,title:{text:`Correlation Matrix (${days}d daily returns)`,left:'center',top:8,textStyle:{color:T,fontSize:15,fontWeight:700}},
+tooltip:{position:'top',formatter:p=>{const[x,ry,v]=p.data;const y=n-1-ry;if(x===y)return`<b>${names[x]}</b> (self)`;const s=v>=0?'+':'';const c=v>=0?U:D;return`<b>${names[y]}</b> vs <b>${names[x]}</b><br>Correlation: <span style="color:${c}">${s}${v.toFixed(3)}</span>`}},
+grid:{left:80,right:80,top:50,bottom:80},
+xAxis:{type:'category',data:names,position:'bottom',axisLine:{show:false},axisTick:{show:false},axisLabel:{color:S,fontSize:12},splitArea:{show:false}},
+yAxis:{type:'category',data:[...names].reverse(),axisLine:{show:false},axisTick:{show:false},axisLabel:{color:S,fontSize:12},splitArea:{show:false}},
+visualMap:{min:-1,max:1,calculable:false,orient:'vertical',right:6,top:'center',inRange:{color:[D,'#6a3040','#4a4a6a','#3a6a50',U]},textStyle:{color:S},text:['+1','-1']},
+series:[{type:'heatmap',data:hd,label:{show:true,formatter:p=>p.data[2]===1?'1.00':p.data[2].toFixed(2),color:T,fontSize:n>5?10:13},emphasis:{itemStyle:{borderColor:'#fff',borderWidth:2}},itemStyle:{borderColor:B,borderWidth:2}}]},true);
+$('cr-st').textContent=`${names.join(' × ')} · ${minLen} days · Pearson r`}catch(e){$('cr-st').textContent='Error: '+e.message}}
 
 function $(id){return document.getElementById(id)}
 // Auto-load first tab
