@@ -35,14 +35,14 @@ fi
 # ── 3. ARCHITECTURE.md ↔ 代码一致性 ──
 section "3/6 ARCHITECTURE.md 一致性"
 if [ -f "$MCP/ARCHITECTURE.md" ]; then
-  # 检查 ARCHITECTURE.md 提到的每个 src/ 文件是否存在
+  # 检查 ARCHITECTURE.md 提到的每个 .ts 文件是否存在
   ARCH_MISSING=0
   while IFS= read -r fpath; do
     if [ ! -f "$MCP/$fpath" ]; then
       red "ARCHITECTURE.md mentions $fpath but file missing"
       ARCH_MISSING=$((ARCH_MISSING+1))
     fi
-  done < <(grep -oE 'src/[a-z/-]+\.ts' "$MCP/ARCHITECTURE.md" | sort -u)
+  done < <(grep -oE 'src/[a-zA-Z_/-]+\.ts' "$MCP/ARCHITECTURE.md" | sort -u)
   [ "$ARCH_MISSING" -eq 0 ] && green "All source files in ARCHITECTURE.md exist"
 
   # 检查实际 src/ 文件是否都在 ARCHITECTURE.md 中
