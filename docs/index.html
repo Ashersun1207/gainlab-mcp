@@ -5,255 +5,209 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GainLab — Agent's Eyes for Financial Charts</title>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      background: #0d0d1a; 
-      color: #e0e0e0; 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      min-height: 100vh;
-    }
-    .header {
-      text-align: center;
-      padding: 40px 20px 20px;
-    }
-    .header h1 {
-      font-size: 2.5em;
-      background: linear-gradient(135deg, #00d4aa, #5b8ff9);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 8px;
-    }
-    .header .subtitle {
-      font-size: 1.2em;
-      color: #a0a0a0;
-      margin-bottom: 4px;
-    }
-    .header .tagline {
-      font-size: 0.95em;
-      color: #666;
-      font-style: italic;
-    }
-    .badge-row {
-      display: flex;
-      gap: 8px;
-      justify-content: center;
-      margin: 16px 0;
-      flex-wrap: wrap;
-    }
-    .badge {
-      padding: 4px 12px;
-      border-radius: 12px;
-      font-size: 0.8em;
-      font-weight: 600;
-    }
-    .badge.live { background: #00d4aa22; color: #00d4aa; border: 1px solid #00d4aa44; }
-    .badge.soon { background: #5b8ff922; color: #5b8ff9; border: 1px solid #5b8ff944; }
-    .badge.mcp { background: #ffc23322; color: #ffc233; border: 1px solid #ffc23344; }
-    .controls {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      padding: 16px;
-      flex-wrap: wrap;
-    }
-    select, button {
-      background: #1a1a2e;
-      color: #e0e0e0;
-      border: 1px solid #3d3d5c;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 0.9em;
-      cursor: pointer;
-    }
-    select:hover, button:hover { border-color: #00d4aa; }
-    button.primary {
-      background: #00d4aa;
-      color: #0d0d1a;
-      font-weight: 600;
-      border: none;
-    }
-    button.primary:hover { background: #00b894; }
-    #chart {
-      width: 90%;
-      max-width: 1000px;
-      height: 500px;
-      margin: 0 auto;
-    }
-    .status {
-      text-align: center;
-      padding: 8px;
-      color: #a0a0a0;
-      font-size: 0.85em;
-    }
-    .features {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      max-width: 900px;
-      margin: 30px auto;
-      padding: 0 20px;
-    }
-    .feature-card {
-      background: #1a1a2e;
-      border: 1px solid #2d2d44;
-      border-radius: 12px;
-      padding: 20px;
-      text-align: center;
-    }
-    .feature-card .icon { font-size: 2em; margin-bottom: 8px; }
-    .feature-card h3 { color: #00d4aa; font-size: 0.95em; margin-bottom: 4px; }
-    .feature-card p { color: #888; font-size: 0.8em; }
-    .footer {
-      text-align: center;
-      padding: 30px;
-      color: #555;
-      font-size: 0.85em;
-    }
-    .footer a { color: #5b8ff9; text-decoration: none; }
+    :root{--bg:#08081a;--bg2:#0d0d1f;--card:#12122b;--bdr:#1e1e3d;--bdr-a:#00d4aa55;--up:#00d4aa;--dn:#ff4757;--acc:#5b8ff9;--gold:#ffc233;--purp:#7c4dff;--txt:#e8e8f0;--dim:#8888aa;--mut:#555577;--grid:#1a1a35;--f:'DM Sans',sans-serif;--m:'JetBrains Mono',monospace}
+    *{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--txt);font-family:var(--f);min-height:100vh}
+    .hero{text-align:center;padding:56px 20px 36px;position:relative}
+    .hero::before{content:'';position:absolute;top:-40%;left:50%;transform:translateX(-50%);width:700px;height:700px;background:radial-gradient(ellipse,#00d4aa08,transparent 70%);pointer-events:none}
+    .logo{font-size:3em;font-weight:700;letter-spacing:-1px}.logo .g{color:var(--up)}
+    .sub{font-size:1.1em;color:var(--dim);margin:4px 0;font-weight:500}
+    .tag{font-size:.88em;color:var(--mut);font-style:italic;margin-bottom:22px}
+    .stats{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;margin-bottom:28px;font-family:var(--m);font-size:.82em}
+    .stats .s{display:flex;align-items:center;gap:5px}.stats .d{width:7px;height:7px;border-radius:50%;display:inline-block}
+    .stats .d.g{background:var(--up);box-shadow:0 0 6px var(--up)}.stats .d.b{background:var(--acc);box-shadow:0 0 6px var(--acc)}.stats .d.y{background:var(--gold);box-shadow:0 0 6px var(--gold)}
+    .stats .n{color:var(--txt);font-weight:600}.stats .l{color:var(--mut)}
+    .tnav{display:flex;justify-content:center;gap:4px;padding:0 16px;margin-bottom:18px}
+    .tb{background:0;border:1px solid var(--bdr);color:var(--dim);padding:9px 18px;border-radius:7px;font-family:var(--f);font-size:.84em;font-weight:600;cursor:pointer;transition:.2s}
+    .tb:hover{background:#1a1a3a;color:var(--txt)}.tb.on{background:var(--card);border-color:var(--bdr-a);color:var(--up)}
+    .demo{max-width:1060px;margin:0 auto;padding:0 16px}
+    .pnl{display:none;background:var(--card);border:1px solid var(--bdr);border-radius:14px;overflow:hidden}.pnl.on{display:block}
+    .ctl{display:flex;gap:8px;padding:12px 16px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--bdr)}
+    .ctl select,.ctl button{background:var(--bg);color:var(--txt);border:1px solid var(--bdr);padding:6px 12px;border-radius:6px;font-family:var(--f);font-size:.82em;cursor:pointer;transition:.2s}
+    .ctl select:hover,.ctl button:hover{border-color:var(--up)}
+    .ctl .go{background:var(--up);color:var(--bg);font-weight:700;border:none;padding:6px 16px}.ctl .go:hover{opacity:.85}
+    .ctl .sp{flex:1}.ctl .st{font-family:var(--m);font-size:.74em;color:var(--mut)}
+    .cw{width:100%;height:480px;padding:8px}
+    .code-s{max-width:1060px;margin:38px auto 0;padding:0 16px}
+    .code-s h3{font-size:.82em;color:var(--dim);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:1px}
+    .cb{background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:16px 20px;font-family:var(--m);font-size:.78em;line-height:1.6;color:var(--dim);overflow-x:auto;white-space:pre}
+    .cb .k{color:var(--purp)}.cb .s{color:var(--up)}.cb .c{color:var(--mut);font-style:italic}.cb .n{color:var(--gold)}
+    .feats{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;max-width:1060px;margin:40px auto 0;padding:0 16px}
+    .ft{background:var(--card);border:1px solid var(--bdr);border-radius:12px;padding:20px 16px;transition:.2s}
+    .ft:hover{border-color:var(--bdr-a);transform:translateY(-2px)}
+    .ft .i{font-size:1.5em;margin-bottom:6px}.ft h4{font-size:.9em;margin-bottom:3px}.ft p{font-size:.76em;color:var(--mut);line-height:1.5}
+    .ft .tg{display:inline-block;margin-top:7px;font-size:.66em;font-family:var(--m);padding:2px 7px;border-radius:4px}
+    .ft .tg.lv{background:#00d4aa18;color:var(--up)}.ft .tg.sn{background:#5b8ff918;color:var(--acc)}
+    .arch-s{max-width:1060px;margin:40px auto 0;padding:0 16px}
+    .arch-s h3{font-size:.82em;color:var(--dim);margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px}
+    .arch{background:var(--card);border:1px solid var(--bdr);border-radius:12px;padding:22px;font-family:var(--m);font-size:.76em;line-height:1.8;color:var(--dim);white-space:pre;overflow-x:auto}
+    .ftr{text-align:center;padding:48px 20px 28px;color:var(--mut);font-size:.82em}
+    .ftr a{color:var(--acc);text-decoration:none}.ftr a:hover{text-decoration:underline}.ftr .lk{margin-bottom:8px}.ftr .lk a{margin:0 10px}
+    @media(max-width:640px){.logo{font-size:2.2em}.tb{padding:7px 10px;font-size:.76em}.cw{height:340px}.feats{grid-template-columns:1fr 1fr}}
   </style>
 </head>
 <body>
 
-<div class="header">
-  <h1>🦞 GainLab</h1>
-  <div class="subtitle">Agent's Eyes for Financial Charts</div>
-  <div class="tagline">Agent 会分析，但不会画图。GainLab 帮 Agent 画图。</div>
-  <div class="badge-row">
-    <span class="badge mcp">MCP Server</span>
-    <span class="badge live">Crypto ✅</span>
-    <span class="badge soon">US Stocks 🔜</span>
-    <span class="badge soon">A-Shares 🔜</span>
-    <span class="badge soon">Commodities 🔜</span>
+<div class="hero">
+  <div class="logo">🦞 <span class="g">Gain</span>Lab</div>
+  <div class="sub">Agent's Eyes for Financial Charts</div>
+  <div class="tag">Agents can analyze, but they can't draw charts. GainLab gives agents eyes.</div>
+  <div class="stats">
+    <div class="s"><span class="d g"></span><span class="n">4</span><span class="l">tools</span></div>
+    <div class="s"><span class="d b"></span><span class="n">4</span><span class="l">markets</span></div>
+    <div class="s"><span class="d y"></span><span class="n">112</span><span class="l">tests</span></div>
   </div>
 </div>
 
-<div class="controls">
-  <select id="symbol">
-    <option value="BTCUSDT">BTC/USDT</option>
-    <option value="ETHUSDT">ETH/USDT</option>
-    <option value="SOLUSDT">SOL/USDT</option>
-    <option value="BNBUSDT">BNB/USDT</option>
-    <option value="XRPUSDT">XRP/USDT</option>
-  </select>
-  <select id="timeframe">
-    <option value="1h">1H</option>
-    <option value="4h">4H</option>
-    <option value="1d" selected>1D</option>
-    <option value="1w">1W</option>
-  </select>
-  <select id="limit">
-    <option value="60">60 candles</option>
-    <option value="100" selected>100 candles</option>
-    <option value="200">200 candles</option>
-  </select>
-  <button class="primary" onclick="loadChart()">Load Chart</button>
+<div class="tnav">
+  <button class="tb on" onclick="sw('kline',this)">📊 K-Line</button>
+  <button class="tb" onclick="sw('indicators',this)">🔧 Indicators</button>
+  <button class="tb" onclick="sw('overlay',this)">📈 Overlay</button>
+  <button class="tb" onclick="sw('fundamentals',this)">📋 Fundamentals</button>
 </div>
 
-<div id="chart"></div>
-<div class="status" id="status">Select a pair and click Load Chart</div>
+<div class="demo">
+  <div class="pnl on" id="p-kline">
+    <div class="ctl">
+      <select id="kl-s"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option></select>
+      <select id="kl-t"><option value="1h">1H</option><option value="4h">4H</option><option value="1d" selected>1D</option><option value="1w">1W</option></select>
+      <select id="kl-l"><option>60</option><option selected>100</option><option>200</option></select>
+      <button class="go" onclick="lkl()">Load</button><div class="sp"></div><span class="st" id="kl-st">—</span>
+    </div>
+    <div class="cw" id="c-kline"></div>
+  </div>
 
-<div class="features">
-  <div class="feature-card">
-    <div class="icon">📊</div>
-    <h3>K-Line Charts</h3>
-    <p>Candlestick + Volume with dark theme</p>
+  <div class="pnl" id="p-indicators">
+    <div class="ctl">
+      <select id="in-s"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option></select>
+      <select id="in-i" multiple size="3" style="min-width:130px"><option value="MA" selected>MA</option><option value="RSI" selected>RSI</option><option value="MACD">MACD</option><option value="BOLL">Bollinger</option></select>
+      <button class="go" onclick="lind()">Load</button><div class="sp"></div><span class="st" id="in-st">—</span>
+    </div>
+    <div class="cw" id="c-indicators" style="height:560px"></div>
   </div>
-  <div class="feature-card">
-    <div class="icon">📈</div>
-    <h3>Multi-Asset Overlay</h3>
-    <p>Compare assets on one chart</p>
+
+  <div class="pnl" id="p-overlay">
+    <div class="ctl">
+      <select id="ov-1"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option></select>
+      <span style="color:var(--mut);font-size:.8em">vs</span>
+      <select id="ov-2"><option>ETHUSDT</option><option>BTCUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option></select>
+      <select id="ov-d"><option value="90">3M</option><option value="180" selected>6M</option><option value="365">1Y</option></select>
+      <button class="go" onclick="lov()">Compare</button><div class="sp"></div><span class="st" id="ov-st">—</span>
+    </div>
+    <div class="cw" id="c-overlay"></div>
   </div>
-  <div class="feature-card">
-    <div class="icon">🔧</div>
-    <h3>Technical Indicators</h3>
-    <p>MA, RSI, MACD, Bollinger</p>
-  </div>
-  <div class="feature-card">
-    <div class="icon">📋</div>
-    <h3>Fundamentals</h3>
-    <p>Revenue, P/E, margins</p>
-  </div>
-  <div class="feature-card">
-    <div class="icon">📅</div>
-    <h3>Financial Calendar</h3>
-    <p>Earnings, FOMC, unlocks</p>
-  </div>
-  <div class="feature-card">
-    <div class="icon">🔔</div>
-    <h3>Smart Alerts</h3>
-    <p>Price, event & indicator alerts</p>
+
+  <div class="pnl" id="p-fundamentals">
+    <div class="ctl"><span class="st">Fundamentals require API keys — showing sample data (AAPL vs MSFT vs GOOGL)</span></div>
+    <div class="cw" id="c-fundamentals"></div>
   </div>
 </div>
 
-<div class="footer">
-  <a href="https://github.com/Ashersun1207/gainlab-mcp">GitHub</a> · 
-  Built by Asher & 智慧卷卷 🦞 · 
-  Apache 2.0
+<div class="code-s">
+  <h3>Use with any MCP Client</h3>
+  <div class="cb"><span class="c">// Ask your AI agent:</span>
+"Draw a BTC daily K-line chart with RSI and MACD"
+
+<span class="c">// Or call the MCP tool directly:</span>
+{
+  <span class="s">"tool"</span>: <span class="s">"gainlab_indicators"</span>,
+  <span class="s">"symbol"</span>: <span class="s">"BTCUSDT"</span>,
+  <span class="s">"market"</span>: <span class="s">"crypto"</span>,
+  <span class="s">"indicators"</span>: [<span class="s">"MA"</span>, <span class="s">"RSI"</span>, <span class="s">"MACD"</span>]
+}</div>
+</div>
+
+<div class="feats">
+  <div class="ft"><div class="i">📊</div><h4>K-Line Charts</h4><p>Professional candlestick + volume. Crypto, US stocks, A-shares, commodities.</p><span class="tg lv">✅ live</span></div>
+  <div class="ft"><div class="i">🔧</div><h4>Technical Indicators</h4><p>MA, EMA, RSI, MACD, Bollinger, KDJ. Dynamic multi-panel layout.</p><span class="tg lv">✅ live</span></div>
+  <div class="ft"><div class="i">📈</div><h4>Multi-Asset Overlay</h4><p>Compare 2-6 assets. Normalized % change. Cross-market.</p><span class="tg lv">✅ live</span></div>
+  <div class="ft"><div class="i">📋</div><h4>Fundamentals</h4><p>Revenue, margins, EPS. Peer comparison. US + A-shares.</p><span class="tg lv">✅ live</span></div>
+  <div class="ft"><div class="i">📅</div><h4>Financial Calendar</h4><p>Earnings, FOMC, CPI, token unlocks.</p><span class="tg sn">phase 3</span></div>
+  <div class="ft"><div class="i">📊</div><h4>Volume Profile</h4><p>Price-at-volume distribution.</p><span class="tg sn">phase 3</span></div>
+  <div class="ft"><div class="i">⚡</div><h4>Funding Rate</h4><p>Crypto perpetual rates across exchanges.</p><span class="tg sn">phase 3</span></div>
+  <div class="ft"><div class="i">🔔</div><h4>Smart Alerts</h4><p>Price, event & indicator alerts.</p><span class="tg sn">phase 4</span></div>
+</div>
+
+<div class="arch-s">
+  <h3>Architecture</h3>
+  <div class="arch">Agent (Claude / ChatGPT / OpenClaw / custom)
+  │ MCP Protocol
+  ▼
+@gainlab/mcp-server
+  ├── tools/    → 4 MCP tools (kline, indicators, overlay, fundamentals)
+  ├── data/     → 4 markets (Binance · FMP · EODHD)
+  ├── render/   → ECharts (interactive HTML + server-side PNG)
+  └── utils/    → TA math (zero deps) + proxy-aware fetch</div>
+</div>
+
+<div class="ftr">
+  <div class="lk"><a href="https://github.com/Ashersun1207/gainlab-mcp">GitHub</a><a href="https://github.com/Ashersun1207/gainlab-mcp#quick-start">Docs</a><a href="https://github.com/Ashersun1207/gainlab-mcp/blob/main/LICENSE">Apache 2.0</a></div>
+  Built by <a href="https://github.com/Ashersun1207">Asher</a> &amp; 智慧卷卷 🦞
 </div>
 
 <script>
-const UP = '#00d4aa', DOWN = '#ff4757', BG = '#1a1a2e', GRID = '#2d2d44', TEXT = '#e0e0e0', SUB = '#a0a0a0';
-const chart = echarts.init(document.getElementById('chart'));
+const U='#00d4aa',D='#ff4757',B='#0d0d1f',G='#1a1a35',T='#e8e8f0',S='#8888aa',P=['#00d4aa','#5b8ff9','#ff4757','#ffc233','#7c4dff'];
+const ch={};
+function ic(id){if(!ch[id]){ch[id]=echarts.init(document.getElementById(id));window.addEventListener('resize',()=>ch[id]?.resize())}return ch[id]}
+function sw(n,el){document.querySelectorAll('.tb').forEach(b=>b.classList.remove('on'));document.querySelectorAll('.pnl').forEach(p=>p.classList.remove('on'));el.classList.add('on');document.getElementById('p-'+n).classList.add('on');if(n==='kline'&&!ch['c-kline'])lkl();if(n==='indicators'&&!ch['c-indicators'])lind();if(n==='overlay'&&!ch['c-overlay'])lov();if(n==='fundamentals'&&!ch['c-fundamentals'])lfun();setTimeout(()=>{if(ch['c-'+n])ch['c-'+n].resize()},50)}
+async function fb(s,i,l){return(await fetch(`https://api.binance.com/api/v3/klines?symbol=${s}&interval=${i}&limit=${l}`)).json()}
+function fd(ts,tf){const d=new Date(ts);return(tf.includes('m')||tf==='1h'||tf==='4h')?d.toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):d.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})}
 
-async function loadChart() {
-  const symbol = document.getElementById('symbol').value;
-  const tf = document.getElementById('timeframe').value;
-  const limit = document.getElementById('limit').value;
-  document.getElementById('status').textContent = `Loading ${symbol} ${tf}...`;
+// K-LINE
+async function lkl(){const s=$('kl-s').value,t=$('kl-t').value,l=+$('kl-l').value;$('kl-st').textContent='Loading...';
+try{const r=await fb(s,t,l),dt=r.map(k=>fd(k[0],t)),oh=r.map(k=>[+k[1],+k[4],+k[3],+k[2]]),v=r.map(k=>+k[5]),vc=r.map(k=>+k[4]>=+k[1]?U+'80':D+'80');
+ic('c-kline').setOption({backgroundColor:B,animation:false,title:{text:`${s} — ${t}`,left:'center',textStyle:{color:T,fontSize:15,fontWeight:700}},tooltip:{trigger:'axis',axisPointer:{type:'cross'},backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T}},grid:[{left:'8%',right:'4%',top:'10%',height:'56%'},{left:'8%',right:'4%',top:'70%',height:'18%'}],xAxis:[{type:'category',data:dt,gridIndex:0,axisLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:10},splitLine:{show:false}},{type:'category',data:dt,gridIndex:1,axisLine:{lineStyle:{color:G}},axisLabel:{show:false},splitLine:{show:false}}],yAxis:[{type:'value',gridIndex:0,splitLine:{lineStyle:{color:G}},axisLabel:{color:S},scale:true},{type:'value',gridIndex:1,splitLine:{show:false},axisLabel:{show:false},axisLine:{show:false}}],series:[{type:'candlestick',data:oh,itemStyle:{color:U,color0:D,borderColor:U,borderColor0:D}},{type:'bar',data:v.map((x,i)=>({value:x,itemStyle:{color:vc[i]}})),xAxisIndex:1,yAxisIndex:1}],dataZoom:[{type:'inside',xAxisIndex:[0,1]}]},true);
+const la=r[r.length-1],pc=((+la[4]-+la[1])/+la[1]*100).toFixed(2);$('kl-st').textContent=`Last: ${(+la[4]).toLocaleString()} (${pc>=0?'+':''}${pc}%) · ${r.length} candles`}catch(e){$('kl-st').textContent='Error: '+e.message}}
 
-  try {
-    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${tf}&limit=${limit}`;
-    const res = await fetch(url);
-    const raw = await res.json();
+// TA helpers
+function ma(c,p){return c.map((_,i)=>i<p-1?null:c.slice(i-p+1,i+1).reduce((a,b)=>a+b,0)/p)}
+function ema(d,p){const r=[],m=2/(p+1);d.forEach((v,i)=>{i===0?r.push(v):r.push(v*m+r[i-1]*(1-m))});return r}
+function rsi(c,p=14){const r=[];let ag=0,al=0;for(let i=0;i<c.length;i++){if(!i){r.push(null);continue}const d=c[i]-c[i-1],g=d>0?d:0,l=d<0?-d:0;if(i<=p){ag+=g/p;al+=l/p;r.push(i<p?null:100-100/(1+ag/(al||.001)))}else{ag=(ag*(p-1)+g)/p;al=(al*(p-1)+l)/p;r.push(100-100/(1+ag/(al||.001)))}}return r}
+function macd(c){const e12=ema(c,12),e26=ema(c,26),m=e12.map((v,i)=>v-e26[i]),s=ema(m,9),h=m.map((v,i)=>v-s[i]);return{m,s,h}}
+function boll(c,p=20){const mid=ma(c,p),up=[],lo=[];for(let i=0;i<c.length;i++){if(mid[i]===null){up.push(null);lo.push(null);continue}const sl=c.slice(i-p+1,i+1),sd=Math.sqrt(sl.reduce((a,v)=>a+(v-mid[i])**2,0)/p);up.push(mid[i]+2*sd);lo.push(mid[i]-2*sd)}return{mid,up,lo}}
 
-    const dates = raw.map(k => {
-      const d = new Date(k[0]);
-      return tf.includes('m') || tf === '1h' || tf === '4h'
-        ? d.toLocaleString('en-US', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})
-        : d.toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'});
-    });
-    const ohlc = raw.map(k => [+k[1], +k[4], +k[3], +k[2]]);
-    const vols = raw.map(k => +k[5]);
-    const vColors = raw.map(k => +k[4] >= +k[1] ? UP+'80' : DOWN+'80');
+// INDICATORS
+async function lind(){const s=$('in-s').value,sel=Array.from($('in-i').selectedOptions).map(o=>o.value);$('in-st').textContent='Loading...';
+try{const r=await fb(s,'1d',120),dt=r.map(k=>fd(k[0],'1d')),cl=r.map(k=>+k[4]),oh=r.map(k=>[+k[1],+k[4],+k[3],+k[2]]),v=r.map(k=>+k[5]),vc=r.map(k=>+k[4]>=+k[1]?U+'80':D+'80');
+const hasRSI=sel.includes('RSI'),hasMACD=sel.includes('MACD');let subN=0;if(hasRSI)subN++;if(hasMACD)subN++;
+const mainH=subN===0?52:subN===1?40:34,volT=10+mainH+2,volH=8;
+const grids=[{left:'8%',right:'4%',top:'8%',height:mainH+'%'},{left:'8%',right:'4%',top:(10+mainH)+'%',height:volH+'%'}];
+const xA=[{type:'category',data:dt,gridIndex:0,axisLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:9},splitLine:{show:false}},{type:'category',data:dt,gridIndex:1,axisLine:{lineStyle:{color:G}},axisLabel:{show:false},splitLine:{show:false}}];
+const yA=[{type:'value',gridIndex:0,splitLine:{lineStyle:{color:G}},axisLabel:{color:S},scale:true},{type:'value',gridIndex:1,splitLine:{show:false},axisLabel:{show:false},axisLine:{show:false}}];
+const ser=[{type:'candlestick',data:oh,itemStyle:{color:U,color0:D,borderColor:U,borderColor0:D}},{type:'bar',data:v.map((x,i)=>({value:x,itemStyle:{color:vc[i]}})),xAxisIndex:1,yAxisIndex:1}];
+const dzIdx=[0,1];let gi=2,curTop=10+mainH+volH+2;
 
-    chart.setOption({
-      backgroundColor: BG,
-      animation: false,
-      title: { text: `${symbol} — ${tf}`, left: 'center', textStyle: {color:TEXT, fontSize:16, fontWeight:'bold'} },
-      tooltip: { trigger:'axis', axisPointer:{type:'cross'}, backgroundColor:'#2d2d44', borderColor:'#3d3d5c', textStyle:{color:TEXT} },
-      grid: [
-        { left:'8%', right:'4%', top:'12%', height:'55%' },
-        { left:'8%', right:'4%', top:'72%', height:'18%' },
-      ],
-      xAxis: [
-        { type:'category', data:dates, gridIndex:0, axisLine:{lineStyle:{color:GRID}}, axisLabel:{color:SUB,fontSize:10}, splitLine:{show:false} },
-        { type:'category', data:dates, gridIndex:1, axisLine:{lineStyle:{color:GRID}}, axisLabel:{show:false}, splitLine:{show:false} },
-      ],
-      yAxis: [
-        { type:'value', gridIndex:0, splitLine:{lineStyle:{color:GRID}}, axisLabel:{color:SUB}, scale:true },
-        { type:'value', gridIndex:1, splitLine:{show:false}, axisLabel:{show:false}, axisLine:{show:false} },
-      ],
-      series: [
-        { name:'K', type:'candlestick', data:ohlc, xAxisIndex:0, yAxisIndex:0,
-          itemStyle: { color:UP, color0:DOWN, borderColor:UP, borderColor0:DOWN } },
-        { name:'Vol', type:'bar', data:vols.map((v,i) => ({value:v, itemStyle:{color:vColors[i]}})),
-          xAxisIndex:1, yAxisIndex:1 },
-      ],
-      dataZoom: [{ type:'inside', xAxisIndex:[0,1], start:0, end:100 }],
-    }, true);
+// MA overlay
+if(sel.includes('MA')){[7,25,99].forEach((p,pi)=>{ser.push({type:'line',data:ma(cl,p),name:'MA'+p,symbol:'none',lineStyle:{width:1.2,color:P[pi]},xAxisIndex:0,yAxisIndex:0})})}
+// BOLL overlay
+if(sel.includes('BOLL')){const b=boll(cl);ser.push({type:'line',data:b.mid,name:'BOLL Mid',symbol:'none',lineStyle:{width:1,color:'#ffc233'}});ser.push({type:'line',data:b.up,name:'BOLL Upper',symbol:'none',lineStyle:{width:1,type:'dashed',color:'#ffc23380'}});ser.push({type:'line',data:b.lo,name:'BOLL Lower',symbol:'none',lineStyle:{width:1,type:'dashed',color:'#ffc23380'}});ser.push({type:'line',data:b.up,name:'Band',symbol:'none',lineStyle:{width:0},areaStyle:{color:'#ffc23310'},stack:'boll'});ser.push({type:'line',data:b.lo,symbol:'none',lineStyle:{width:0},areaStyle:{color:'#ffc23310'},stack:'boll'})}
+// RSI sub-panel
+if(hasRSI){const subH=subN===1?18:14;grids.push({left:'8%',right:'4%',top:curTop+'%',height:subH+'%'});xA.push({type:'category',data:dt,gridIndex:gi,axisLine:{lineStyle:{color:G}},axisLabel:{show:false},splitLine:{show:false}});yA.push({type:'value',gridIndex:gi,min:0,max:100,splitLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:9}});ser.push({type:'line',data:rsi(cl),name:'RSI(14)',symbol:'none',lineStyle:{width:1.5,color:'#7c4dff'},xAxisIndex:gi,yAxisIndex:gi});dzIdx.push(gi);curTop+=subH+2;gi++}
+// MACD sub-panel
+if(hasMACD){const subH=subN===1?18:14;grids.push({left:'8%',right:'4%',top:curTop+'%',height:subH+'%'});xA.push({type:'category',data:dt,gridIndex:gi,axisLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:9},splitLine:{show:false}});yA.push({type:'value',gridIndex:gi,splitLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:9}});const mc=macd(cl);ser.push({type:'bar',data:mc.h.map(v=>({value:v,itemStyle:{color:v>=0?U+'cc':D+'cc'}})),name:'Hist',xAxisIndex:gi,yAxisIndex:gi});ser.push({type:'line',data:mc.m,name:'MACD',symbol:'none',lineStyle:{width:1.2,color:'#5b8ff9'},xAxisIndex:gi,yAxisIndex:gi});ser.push({type:'line',data:mc.s,name:'Signal',symbol:'none',lineStyle:{width:1.2,color:'#ff6b6b'},xAxisIndex:gi,yAxisIndex:gi});dzIdx.push(gi);gi++}
 
-    const last = raw[raw.length-1];
-    const change = ((+last[4] - +last[1]) / +last[1] * 100).toFixed(2);
-    const arrow = change >= 0 ? '▲' : '▼';
-    document.getElementById('status').textContent = `${symbol} Last: ${(+last[4]).toLocaleString()} (${arrow}${change}%) · ${raw.length} candles · Powered by Binance API`;
-  } catch(e) {
-    document.getElementById('status').textContent = `Error: ${e.message}. If blocked, try a VPN.`;
-  }
-}
+ic('c-indicators').setOption({backgroundColor:B,animation:false,title:{text:`${s} — Indicators`,left:'center',textStyle:{color:T,fontSize:14,fontWeight:700}},tooltip:{trigger:'axis',axisPointer:{type:'cross'},backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T,fontSize:11}},legend:{data:ser.filter(s=>s.name).map(s=>s.name),bottom:0,textStyle:{color:S,fontSize:10}},grid:grids,xAxis:xA,yAxis:yA,series:ser,dataZoom:[{type:'inside',xAxisIndex:dzIdx}]},true);
+$('in-st').textContent=`${s} · ${sel.join('+')} · ${r.length} candles`}catch(e){$('in-st').textContent='Error: '+e.message}}
 
-window.addEventListener('resize', () => chart.resize());
-loadChart();
+// OVERLAY
+async function lov(){const s1=$('ov-1').value,s2=$('ov-2').value,days=+$('ov-d').value;$('ov-st').textContent='Loading...';
+try{const[r1,r2]=await Promise.all([fb(s1,'1d',days),fb(s2,'1d',days)]);
+function norm(r){const cl=r.map(k=>+k[4]),f=cl[0];return{dates:r.map(k=>fd(k[0],'1d')),vals:cl.map(v=>((v-f)/f)*100)}}
+const a=norm(r1),b=norm(r2);
+ic('c-overlay').setOption({backgroundColor:B,animation:false,title:{text:`${s1} vs ${s2} (% change)`,left:'center',textStyle:{color:T,fontSize:14,fontWeight:700}},tooltip:{trigger:'axis',backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T},formatter:function(p){let s=p[0].axisValue+'<br>';p.forEach(i=>{s+=`<span style="color:${i.color}">●</span> ${i.seriesName}: ${i.value!==null?i.value.toFixed(2)+'%':'—'}<br>`});return s}},legend:{data:[s1,s2],bottom:4,textStyle:{color:S,fontSize:10}},grid:[{left:'8%',right:'4%',top:'10%',height:'78%'}],xAxis:[{type:'category',data:a.dates,axisLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:9},splitLine:{show:false}}],yAxis:[{type:'value',splitLine:{lineStyle:{color:G}},axisLabel:{color:S,formatter:v=>v.toFixed(0)+'%'}}],series:[{name:s1,type:'line',data:a.vals,symbol:'none',lineStyle:{width:2,color:P[0]},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:P[0]+'20'},{offset:1,color:'transparent'}]}}},{name:s2,type:'line',data:b.vals,symbol:'none',lineStyle:{width:2,color:P[1]},areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:P[1]+'20'},{offset:1,color:'transparent'}]}}}],dataZoom:[{type:'inside'}]},true);
+const la1=r1[r1.length-1],la2=r2[r2.length-1];const p1=((+la1[4]-+r1[0][4])/+r1[0][4]*100).toFixed(1),p2=((+la2[4]-+r2[0][4])/+r2[0][4]*100).toFixed(1);
+$('ov-st').textContent=`${s1}: ${p1>=0?'+':''}${p1}% · ${s2}: ${p2>=0?'+':''}${p2}%`}catch(e){$('ov-st').textContent='Error: '+e.message}}
+
+// FUNDAMENTALS (sample data)
+function lfun(){const years=['2021','2022','2023','2024','2025'];
+const data={AAPL:{rev:[365.8,394.3,383.3,391.0,420.5],ni:[94.7,99.8,97.0,93.7,105.2]},MSFT:{rev:[168.1,198.3,211.9,245.1,277.0],ni:[61.3,72.7,72.4,88.1,102.3]},GOOGL:{rev:[257.6,282.8,307.4,350.0,381.0],ni:[76.0,59.9,73.8,100.7,112.5]}};
+ic('c-fundamentals').setOption({backgroundColor:B,animation:true,title:{text:'Revenue Comparison (Billion USD)',left:'center',textStyle:{color:T,fontSize:14,fontWeight:700}},tooltip:{trigger:'axis',backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T},formatter:function(p){let s=p[0].axisValue+'<br>';p.forEach(i=>{s+=`<span style="color:${i.color}">●</span> ${i.seriesName}: $${i.value}B<br>`});return s}},legend:{data:['AAPL','MSFT','GOOGL'],bottom:4,textStyle:{color:S,fontSize:10}},grid:{left:'8%',right:'4%',top:'14%',bottom:'14%'},xAxis:{type:'category',data:years,axisLine:{lineStyle:{color:G}},axisLabel:{color:S}},yAxis:{type:'value',splitLine:{lineStyle:{color:G}},axisLabel:{color:S,formatter:v=>'$'+v+'B'}},series:[{name:'AAPL',type:'bar',data:data.AAPL.rev,itemStyle:{color:P[0],borderRadius:[4,4,0,0]}},{name:'MSFT',type:'bar',data:data.MSFT.rev,itemStyle:{color:P[1],borderRadius:[4,4,0,0]}},{name:'GOOGL',type:'bar',data:data.GOOGL.rev,itemStyle:{color:P[3],borderRadius:[4,4,0,0]}}]},true)}
+
+function $(id){return document.getElementById(id)}
+// Auto-load first tab
+lkl();
 </script>
 </body>
 </html>

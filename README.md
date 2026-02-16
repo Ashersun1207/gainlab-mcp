@@ -6,55 +6,61 @@
 <h3 align="center">Agent's Eyes for Financial Charts 📊</h3>
 
 <p align="center">
-  <em>Agent 会分析，但不会画图。GainLab 帮 Agent 画图。</em>
+  <em>Agents can analyze, but they can't draw charts. GainLab gives agents eyes.</em>
 </p>
 
 <p align="center">
-  <a href="#features">Features</a> •
-  <a href="#quick-start">Quick Start</a> •
-  <a href="#tools">Tools</a> •
-  <a href="#demo">Demo</a>
+  <a href="https://ashersun1207.github.io/gainlab-mcp/">Live Demo</a> •
+  <a href="#tools">4 Tools</a> •
+  <a href="#markets">4 Markets</a> •
+  <a href="#quick-start">Quick Start</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/tools-4%20available-00d4aa" alt="Tools" />
+  <img src="https://img.shields.io/badge/tests-112%20passing-00d4aa" alt="Tests" />
+  <img src="https://img.shields.io/badge/markets-crypto%20%7C%20US%20%7C%20A--shares%20%7C%20gold-5b8ff9" alt="Markets" />
+  <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License" />
 </p>
 
 ---
 
 ## What is GainLab?
 
-Every AI Agent (Claude, ChatGPT, OpenClaw, custom agents) needs to **show** financial data, not just describe it. But agents can't draw charts. **GainLab gives agents eyes.**
-
-GainLab is an MCP Server that provides professional financial chart visualization. Agents call GainLab tools, and get back interactive charts or PNG images.
+Every AI Agent (Claude, ChatGPT, OpenClaw, custom agents) needs to **show** financial data, not just describe it. GainLab is an MCP Server that provides professional financial chart visualization.
 
 ```
-Agent: "Show me BTC's daily candlestick chart"
+You: "Compare BTC vs Gold performance this year"
   ↓ MCP Protocol
-GainLab: fetches data → renders chart → returns interactive HTML or PNG
+GainLab: fetches data → normalizes → renders overlay chart → returns interactive HTML
 ```
 
-## Features
+## Tools
 
-- 📊 **K-Line Charts** — Professional candlestick + volume charts
-- 📈 **Multi-Asset Overlay** — Compare BTC vs Gold vs SPY on one chart *(coming soon)*
-- 🔧 **Technical Indicators** — MA, RSI, MACD, Bollinger Bands *(coming soon)*
-- 📋 **Fundamentals** — Revenue, P/E, margins — Koyfin-style visualization *(coming soon)*
-- 📅 **Financial Calendar** — Earnings, FOMC, CPI, unlock events *(coming soon)*
-- 📊 **Volume Profile** — See where the money is *(coming soon)*
-- ⚡ **Funding Rate** — Crypto perpetual contract rates *(coming soon)*
-- 🔔 **Alerts** — Price, event, and indicator alerts *(coming soon)*
+| Tool | Description | Status |
+|------|-------------|--------|
+| `gainlab_kline` | Candlestick charts with volume | ✅ Live |
+| `gainlab_indicators` | Technical indicators (MA/EMA/RSI/MACD/BOLL/KDJ) | ✅ Live |
+| `gainlab_overlay` | Multi-asset comparison (2-6 assets, normalized) | ✅ Live |
+| `gainlab_fundamentals` | Revenue, margins, EPS — peer comparison | ✅ Live |
+| `gainlab_calendar` | Financial calendar (earnings, FOMC, CPI) | 🔜 Phase 3 |
+| `gainlab_volume_profile` | Volume-at-price distribution | 🔜 Phase 3 |
+| `gainlab_funding` | Crypto perpetual funding rates | 🔜 Phase 3 |
 
-### Markets Covered
+## Markets
 
-| Market | Data Source | Status |
-|--------|-----------|--------|
-| 🪙 Crypto | Binance, OKX | ✅ Live |
-| 🇺🇸 US Stocks | FMP | 🔜 Phase 2 |
-| 🇨🇳 A-Shares | EODHD | 🔜 Phase 2 |
-| 🥇 Commodities | FMP + EODHD | 🔜 Phase 2 |
+| Market | Data Source | Klines | Fundamentals |
+|--------|-----------|--------|-------------|
+| 🪙 Crypto | Binance (free) | ✅ | — |
+| 🇺🇸 US Stocks | FMP ($8/mo) | ✅ daily | ✅ |
+| 🇨🇳 A-Shares | EODHD | ✅ daily | ✅ |
+| 🥇 Precious Metals | EODHD | ✅ daily | — |
 
 ## Quick Start
 
-### Use with Claude Desktop
+### Option 1: With Claude Desktop
 
-Add to your `claude_desktop_config.json`:
+Add to `claude_desktop_config.json`:
 
 ```json
 {
@@ -63,70 +69,169 @@ Add to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["tsx", "/path/to/gainlab-mcp/src/index.ts"],
       "env": {
-        "HTTP_PROXY": "http://127.0.0.1:7897"
+        "FMP_API_KEY": "your-key",
+        "EODHD_API_KEY": "your-key"
       }
     }
   }
 }
 ```
 
-Then ask Claude: *"Draw a BTC daily K-line chart"*
+Then ask Claude: *"Draw a BTC daily K-line chart with RSI and MACD"*
 
-### Use with any MCP client
+### Option 2: Run directly
 
 ```bash
 git clone https://github.com/Ashersun1207/gainlab-mcp.git
 cd gainlab-mcp
 pnpm install
-pnpm dev
+pnpm dev  # starts MCP server on stdio
 ```
 
-## Tools
+### API Keys (optional)
 
-### `gainlab_kline` ✅
+Crypto works without any key. For other markets:
 
-Draw a candlestick (K-line) chart with volume.
+```bash
+export FMP_API_KEY=xxx     # US stocks ($8/mo starter plan)
+export EODHD_API_KEY=xxx   # A-shares + precious metals
+```
 
-**Parameters:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `symbol` | string | required | `"BTCUSDT"`, `"AAPL"`, `"600519.SHG"` |
-| `market` | enum | required | `crypto`, `us_stock`, `a_stock`, `commodity` |
-| `timeframe` | enum | `"1d"` | `1m` to `1M` |
-| `limit` | number | `100` | Number of candles (10-500) |
-| `format` | enum | `"interactive"` | `interactive` (HTML) or `image` (PNG) |
+## Tool Reference
 
-**Output:** Interactive HTML chart or PNG image
+### `gainlab_kline`
 
-## Demo
+```json
+{
+  "symbol": "BTCUSDT",
+  "market": "crypto",
+  "timeframe": "1d",
+  "limit": 100,
+  "format": "interactive"
+}
+```
 
-K-line chart rendered by GainLab (BTC/USDT Daily):
+### `gainlab_indicators`
 
-→ [View Live Demo](https://ashersun1207.github.io/gainlab-mcp/)
+```json
+{
+  "symbol": "AAPL",
+  "market": "us_stock",
+  "timeframe": "1d",
+  "indicators": ["MA", "RSI", "MACD"],
+  "ma_periods": [7, 25, 99],
+  "limit": 100
+}
+```
+
+### `gainlab_overlay`
+
+```json
+{
+  "assets": [
+    { "symbol": "BTCUSDT", "market": "crypto" },
+    { "symbol": "XAUUSD", "market": "commodity" }
+  ],
+  "timeframe": "1d",
+  "period": "1Y",
+  "normalize": true
+}
+```
+
+### `gainlab_fundamentals`
+
+```json
+{
+  "symbols": ["AAPL", "MSFT", "GOOGL"],
+  "market": "us_stock",
+  "metrics": ["revenue", "net_income", "eps"],
+  "period": "annual",
+  "years": 5
+}
+```
+
+## Project Structure
+
+```
+src/
+├── index.ts                  # MCP Server entry point
+├── data/                     # Data layer (one file per market)
+│   ├── types.ts              #   Shared interfaces (OHLCV, FundamentalData)
+│   ├── index.ts              #   Router (dispatches by market type)
+│   ├── crypto.ts             #   Binance API
+│   ├── us-stock.ts           #   FMP stable API
+│   ├── a-stock.ts            #   EODHD (Shanghai/Shenzhen auto-detect)
+│   └── commodity.ts          #   EODHD FOREX (gold, silver)
+├── render/                   # Rendering layer
+│   ├── engine.ts             #   ECharts → HTML or PNG
+│   ├── themes.ts             #   GainLab dark theme
+│   └── charts/               #   Chart configs (one per tool)
+│       ├── kline.ts
+│       ├── indicators.ts     #     Dynamic multi-panel layout
+│       ├── overlay.ts        #     Date alignment + normalization
+│       └── fundamentals.ts   #     Grouped bar + peer comparison
+├── tools/                    # MCP tool definitions (one per tool)
+│   ├── kline.ts
+│   ├── indicators.ts
+│   ├── overlay.ts
+│   └── fundamentals.ts
+└── utils/
+    ├── fetch.ts              # Proxy-aware HTTP client
+    └── ta.ts                 # Technical indicators (pure math, zero deps)
+```
+
+**Design principles:**
+- Each market = one data file. Each tool = one tool file + one chart file.
+- `ta.ts` is pure math — no API calls, no imports, fully testable.
+- Rendering engine supports both interactive HTML and server-side PNG.
+- All data sources degrade gracefully when API keys are missing.
 
 ## Architecture
 
 ```
-Three-layer design (no framework lock-in):
-
-Layer 1: REST API        — Any agent can use (coming soon)
-Layer 2: MCP Server      — Direct to Claude/ChatGPT ← YOU ARE HERE
-Layer 3: @gainlab/react   — Tambo / CopilotKit / Vercel AI SDK (coming soon)
+┌─────────────────────────────────────────────────┐
+│                  AI Agent                        │
+│  (Claude, ChatGPT, OpenClaw, custom)             │
+└──────────────────────┬──────────────────────────┘
+                       │ MCP Protocol
+┌──────────────────────▼──────────────────────────┐
+│            @gainlab/mcp-server                   │
+│                                                  │
+│  Tools ──→ Data Layer ──→ Render Layer ──→ Output│
+│  (4 tools)  (4 markets)   (ECharts)    (HTML/PNG)│
+└──────────────────────────────────────────────────┘
 ```
+
+Three-layer design (no framework lock-in):
+1. **MCP Server** — Direct to Claude/ChatGPT ← current
+2. **REST API** — Any agent can call (planned)
+3. **@gainlab/react** — Embeddable components (planned)
 
 ## Tech Stack
 
-- **Runtime:** Node.js + TypeScript
-- **MCP:** @modelcontextprotocol/sdk
-- **Charts:** Apache ECharts (SSR via node-canvas)
-- **Validation:** Zod
+| Component | Choice |
+|-----------|--------|
+| Runtime | Node.js + TypeScript |
+| MCP SDK | @modelcontextprotocol/sdk |
+| Charts | Apache ECharts |
+| Server-side rendering | node-canvas |
+| Validation | Zod |
+| Package manager | pnpm |
+
+## Testing
+
+```bash
+pnpm test  # 112 tests across 21 suites
+```
+
+Tests cover: data fetching (all 4 markets), chart generation, technical indicator math, tool registration.
 
 ## Roadmap
 
-- [x] Phase 1: Project skeleton + K-line chart
-- [ ] Phase 2: Multi-market data + Overlay + Indicators + Fundamentals
-- [ ] Phase 3: Calendar + Volume Profile + Funding Rate
-- [ ] Phase 4: Alerts + npm publish + Smithery
+- [x] **Phase 1** — Skeleton + K-line chart (Binance)
+- [x] **Phase 2** — 4 markets + Indicators + Overlay + Fundamentals
+- [ ] **Phase 3** — Calendar + Volume Profile + Funding Rate
+- [ ] **Phase 4** — Alerts + npm publish + Smithery marketplace
 
 ## License
 
