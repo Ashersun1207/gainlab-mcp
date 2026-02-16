@@ -21,7 +21,7 @@ const FundamentalsSchema = {
     "roe", "roa", "profit_margin",
     // Health (new)
     "current_ratio", "dividend_yield",
-  ])).min(1).describe("Fundamental metrics to display"),
+  ])).default(["revenue"]).describe("Fundamental metrics to display (ignored in dcf mode, determines revenue/eps in estimates mode)"),
   period: z.enum(["annual", "quarter"]).default("annual").describe("Reporting period"),
   years: z.number().min(1).max(10).default(5).describe("Number of years/quarters of historical data"),
   format: z.enum(["interactive", "image"]).default("interactive").describe("Output format: interactive HTML or PNG image"),
@@ -67,13 +67,15 @@ async function handleDCFMode(params: any): Promise<any> {
     // Fetch DCF data
     const dcfData = await getDCF(symbol, market);
     
-    // Try to fetch analyst target (optional)
+    // Try to fetch analyst target (optional — from nearest year estimate)
     let analystTarget: number | undefined;
     try {
       const estimates = await getAnalystEstimates(symbol, market, "annual", 1);
-      // Get average target price from revenue/eps estimates if available
-      // For now, we'll skip this and implement later if needed
-      analystTarget = undefined;
+      if (estimates.length > 0 && estimates[0].metrics.epsAvg) {
+        // Use EPS estimate × current P/E as rough target
+        // Or just show the EPS estimate in the summary text
+        analystTarget = undefined; // No direct price target from this endpoint
+      }
     } catch {
       analystTarget = undefined;
     }
@@ -222,6 +224,17 @@ export function registerFundamentalsTool(server: McpServer) {
             content: [{
               type: "text",
               text: "Error: Fundamental data is only available for us_stock and a_stock markets. Crypto and commodities are not supported.",
+            }],
+            isError: true,
+          };
+        }
+
+        // Standard mode requires at least one metric
+        if (params.metrics.length === 0) {
+          return {
+            content: [{
+              type: "text",
+              text: "Error: At least one metric is required for standard mode. Available: " + Array.from(AVAILABLE_METRICS).join(", "),
             }],
             isError: true,
           };
