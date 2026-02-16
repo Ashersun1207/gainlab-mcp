@@ -85,17 +85,19 @@ MKT_SYMS = {
 
 ## 已知问题 & 待修
 
-### ✅ [已修 cf089ce] WRB markPoint/markArea 坐标
+### ⚠️ [部分修 cf089ce, 仍有视觉问题] WRB markPoint/markArea
 
-- markPoint.coord 改为 `[dt[x.idx], price]`（类别字符串）
-- 活跃 Gap markArea 终点改为 `dt[dt.length-1]`（延伸到最右）
-- Pro signal 数据格式改为 `{value:[dt[idx],price]}`
+- cf089ce: markPoint.coord 改为 `[dt[x.idx], price]`（类别字符串）
+- cf089ce: 活跃 Gap markArea 终点改为 `dt[dt.length-1]`（延伸到最右）
+- cf089ce: Pro signal 数据格式改为 `{value:[dt[idx],price]}`
+- **⚠️ 老板反馈仍有显示异常** — coord 语法已修正但标记/Gap 渲染效果不对，需视觉验证
 
-### ✅ [已修 cf089ce] VP K线与 VP 柱对齐
+### ⚠️ [部分修 cf089ce, 仍有对齐问题] VP K线与 VP 柱
 
-- 右侧 VP yAxis 从 `category` 改为 `value` 类型
-- 使用 `custom` series + `renderItem` 画横向柱
-- 两个 grid 共享相同的 `min/max` 价格范围
+- cf089ce: 右侧 VP yAxis 从 `category` 改为 `value` 类型
+- cf089ce: 使用 `custom` series + `renderItem` 画横向柱
+- cf089ce: 两个 grid 共享相同的 `min/max` 价格范围
+- **⚠️ 老板反馈 K 线与 VP 面板仍有对齐问题** — 需视觉验证
 
 ### ✅ [已修 cf089ce] Overlay 跨市场多资产
 

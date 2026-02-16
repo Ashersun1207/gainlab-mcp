@@ -4,6 +4,25 @@ _每次修改 index.html 后追加记录。新条目在最上面。_
 
 ---
 
+## cf241f1 — check-all.sh i18n 检测改进
+- i18n key 检查从 grep subtitle 改为统计 zh/en block key 数量
+- 消除误报
+
+## 3e69ce1 — 文档交叉修复
+- ARCHITECTURE.md 补 scripts/ 子目录（check-all.sh + project-boot.sh）
+- DEMO-ARCHITECTURE.md 补文件列表（CHANGELOG.md）
+- status.md 进度同步（多市场 + Overlay 跨市场 → ✅）
+
+## cac03c9 — check-all.sh ARCHITECTURE 文件检测 pattern 修复
+- grep `[a-z]` → `[a-zA-Z_]`，正确匹配大写文件名
+
+## b28de00 — 项目知识系统 v2
+- 新增 check-all.sh（6 节全量质量检查）
+- 新增 project-boot.sh（新会话认知恢复）
+- 新增 DEMO-ARCHITECTURE.md（展示页结构文档）
+- 新增 CHANGELOG.md（本文件）
+- ARCHITECTURE.md 补全 render/charts/ 子目录（10 个文件）
+
 ## cf089ce — Overlay 跨市场 + WRB coord 修复 + VP y轴同步
 - Overlay: 单市场选择器 → 6 个跨市场资产选择器（BTC/AAPL/Gold 默认）
 - WRB: markPoint coord 从数字索引改为 category 字符串 `dt[idx]`
