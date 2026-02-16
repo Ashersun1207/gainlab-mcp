@@ -393,8 +393,8 @@ while(cv<tgt&&(lo>0||hi<rows-1)){const bv=lo>0?vr[lo-1].vol:-1,av=hi<rows-1?vr[h
 if(bv>=av&&bv>=0){lo--;cv+=vr[lo].vol}else if(av>=0){hi++;cv+=vr[hi].vol}else break}
 return{rows:vr,poc:vr[pi].pMid,vah:vr[hi].pMax,val:vr[lo].pMin,pocIdx:pi,vaLo:lo,vaHi:hi}}
 
-async function lvp(){const s=$('vp-s').value,t=$('vp-t').value,l=+$('vp-l').value,rows=+$('vp-r').value,m=$('vp-m')?.value||'crypto';$('vp-st').textContent='Loading...';
-try{const r=await fdata(s,t,l),dt=r.map(k=>fd(k[0],t)),oh=r.map(k=>[+k[1],+k[4],+k[3],+k[2]]),v=r.map(k=>+k[5]),vc=r.map(k=>+k[4]>=+k[1]?U+'80':D+'80');
+async function lvp(){const s=$('vp-s').value,tf=$('vp-t').value,l=+$('vp-l').value,rows=+$('vp-r').value,m=$('vp-m')?.value||'crypto';$('vp-st').textContent='Loading...';
+try{const r=await fdata(s,tf,l),dt=r.map(k=>fd(k[0],tf)),oh=r.map(k=>[+k[1],+k[4],+k[3],+k[2]]),v=r.map(k=>+k[5]),vc=r.map(k=>+k[4]>=+k[1]?U+'80':D+'80');
 const vp=calcVP(r,rows);const maxV=Math.max(...vp.rows.map(r=>r.vol));
 const dispName=s.endsWith('USDT')?s:MKT_SYMS[m]?.find(x=>x.v===s)?.l||s;
 // Calculate price range
@@ -408,20 +408,24 @@ const vpBars=vp.rows.map((row,i)=>({
   sell:row.sv,
   isPOC:i===vp.pocIdx
 }));
-const ch=ic('c-vp');
-ch.setOption({backgroundColor:B,animation:false,title:{text:`${dispName} — ${t} ${t('tab_vp')}`,left:'center',textStyle:{color:T,fontSize:15,fontWeight:700}},
+const prLabels=vp.rows.map(r=>r.pMid.toFixed(2));
+const ch2=ic('c-vp');
+ch2.setOption({backgroundColor:B,animation:false,title:{text:`${dispName} — ${tf} VP`,left:'center',textStyle:{color:T,fontSize:15,fontWeight:700}},
 tooltip:{trigger:'axis',axisPointer:{type:'cross'},backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T}},
 grid:[
-{left:'6%',right:'28%',top:'8%',height:'72%'},
-{left:'74%',right:'2%',top:'8%',height:'72%'}
+{left:'6%',right:'28%',top:'8%',height:'60%'},
+{left:'6%',right:'28%',top:'72%',height:'12%'},
+{left:'74%',right:'2%',top:'8%',height:'60%'}
 ],
 xAxis:[
 {type:'category',data:dt,gridIndex:0,axisLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:9},splitLine:{show:false}},
-{type:'value',gridIndex:1,axisLine:{lineStyle:{color:G}},axisLabel:{show:false},splitLine:{show:false},max:maxV*1.1}
+{type:'category',data:dt,gridIndex:1,axisLine:{lineStyle:{color:G}},axisLabel:{show:false},splitLine:{show:false}},
+{type:'value',gridIndex:2,axisLine:{lineStyle:{color:G}},axisLabel:{show:false},splitLine:{show:false},max:maxV*1.1}
 ],
 yAxis:[
 {type:'value',gridIndex:0,splitLine:{lineStyle:{color:G}},axisLabel:{color:S},min:vpPriceMin-priceMargin,max:vpPriceMax+priceMargin},
-{type:'value',gridIndex:1,splitLine:{lineStyle:{color:G,lineWidth:0.5}},axisLabel:{color:S,fontSize:8},min:vpPriceMin-priceMargin,max:vpPriceMax+priceMargin}
+{type:'value',gridIndex:1,splitLine:{show:false},axisLabel:{show:false},axisLine:{show:false}},
+{type:'category',gridIndex:2,data:prLabels,axisLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:7},splitLine:{show:false}}
 ],
 series:[
 {type:'candlestick',data:oh,xAxisIndex:0,yAxisIndex:0,itemStyle:{color:U,color0:D,borderColor:U,borderColor0:D},
@@ -432,14 +436,11 @@ markLine:{silent:true,symbol:'none',lineStyle:{width:2},data:[
 ]},
 markArea:{silent:true,data:[[{yAxis:vp.val,itemStyle:{color:'#ffc23315'}},{yAxis:vp.vah}]]}
 },
-{name:'Buy Vol',type:'bar',data:vp.rows.map((r,i)=>[r.bv,r.pMid]),xAxisIndex:1,yAxisIndex:1,
-itemStyle:{color:v=>{const idx=vp.rows.findIndex(r=>r.pMid===v.data[1]);return idx===vp.pocIdx?'#ffffff':U}},
-barWidth:'45%',barCategoryGap:'20%'},
-{name:'Sell Vol',type:'bar',data:vp.rows.map((r,i)=>[-r.sv,r.pMid]),xAxisIndex:1,yAxisIndex:1,
-itemStyle:{color:v=>{const idx=vp.rows.findIndex(r=>r.pMid===v.data[1]);return idx===vp.pocIdx?'#dddddd':D}},
-barWidth:'45%',barCategoryGap:'20%'}
+{type:'bar',data:v.map((x,i)=>({value:x,itemStyle:{color:vc[i]}})),xAxisIndex:1,yAxisIndex:1},
+{name:'Buy Vol',type:'bar',stack:'vp',data:vp.rows.map((r,i)=>({value:r.bv,itemStyle:{color:i===vp.pocIdx?'#fff':U,borderColor:i===vp.pocIdx?'#fff':'transparent',borderWidth:i===vp.pocIdx?2:0}})),xAxisIndex:2,yAxisIndex:2,barWidth:'60%'},
+{name:'Sell Vol',type:'bar',stack:'vp',data:vp.rows.map((r,i)=>({value:r.sv,itemStyle:{color:i===vp.pocIdx?'#ccc':D,borderColor:i===vp.pocIdx?'#fff':'transparent',borderWidth:i===vp.pocIdx?2:0}})),xAxisIndex:2,yAxisIndex:2,barWidth:'60%'}
 ],
-dataZoom:[{type:'inside',xAxisIndex:[0]}]
+dataZoom:[{type:'inside',xAxisIndex:[0,1]}]
 },true);
 $('vp-st').textContent=`POC: ${vp.poc.toFixed(2)} | VAH: ${vp.vah.toFixed(2)} | VAL: ${vp.val.toFixed(2)} · ${r.length} candles`
 }catch(e){$('vp-st').textContent='Error: '+e.message}}
@@ -451,9 +452,10 @@ function atr(klines,p=14){const tr=[];klines.forEach((k,i)=>{if(!i){tr.push(+k[2
 const r=[];let a=0;for(let i=0;i<tr.length;i++){if(i<p-1){r.push(null)}else if(i===p-1){a=tr.slice(0,p).reduce((s,v)=>s+v,0)/p;r.push(a)}else{a=(a*(p-1)+tr[i])/p;r.push(a)}}return r}
 
 // K-LINE
-async function lkl(){const s=$('kl-s').value,t=$('kl-t').value,l=+$('kl-l').value,m=$('kl-m')?.value||'crypto';$('kl-st').textContent='Loading...';
-try{const r=await fdata(s,t,l),dt=r.map(k=>fd(k[0],t)),oh=r.map(k=>[+k[1],+k[4],+k[3],+k[2]]),v=r.map(k=>+k[5]),vc=r.map(k=>+k[4]>=+k[1]?U+'80':D+'80');const isSample=!s.endsWith('USDT');
-ic('c-kline').setOption({backgroundColor:B,animation:false,title:{text:`${s} — ${t}`,left:'center',textStyle:{color:T,fontSize:15,fontWeight:700}},tooltip:{trigger:'axis',axisPointer:{type:'cross'},backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T}},grid:[{left:'8%',right:'4%',top:'10%',height:'56%'},{left:'8%',right:'4%',top:'70%',height:'18%'}],xAxis:[{type:'category',data:dt,gridIndex:0,axisLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:10},splitLine:{show:false}},{type:'category',data:dt,gridIndex:1,axisLine:{lineStyle:{color:G}},axisLabel:{show:false},splitLine:{show:false}}],yAxis:[{type:'value',gridIndex:0,splitLine:{lineStyle:{color:G}},axisLabel:{color:S},scale:true},{type:'value',gridIndex:1,splitLine:{show:false},axisLabel:{show:false},axisLine:{show:false}}],series:[{type:'candlestick',data:oh,itemStyle:{color:U,color0:D,borderColor:U,borderColor0:D}},{type:'bar',data:v.map((x,i)=>({value:x,itemStyle:{color:vc[i]}})),xAxisIndex:1,yAxisIndex:1}],dataZoom:[{type:'inside',xAxisIndex:[0,1]}]},true);
+async function lkl(){const s=$('kl-s').value,tf=$('kl-t').value,l=+$('kl-l').value,m=$('kl-m')?.value||'crypto';$('kl-st').textContent='Loading...';
+try{const r=await fdata(s,tf,l),dt=r.map(k=>fd(k[0],tf)),oh=r.map(k=>[+k[1],+k[4],+k[3],+k[2]]),v=r.map(k=>+k[5]),vc=r.map(k=>+k[4]>=+k[1]?U+'80':D+'80');const isSample=!s.endsWith('USDT');
+const dispName=s.endsWith('USDT')?s:MKT_SYMS[m]?.find(x=>x.v===s)?.l||s;
+ic('c-kline').setOption({backgroundColor:B,animation:false,title:{text:`${dispName} — ${tf}`,left:'center',textStyle:{color:T,fontSize:15,fontWeight:700}},tooltip:{trigger:'axis',axisPointer:{type:'cross'},backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T}},grid:[{left:'8%',right:'4%',top:'10%',height:'56%'},{left:'8%',right:'4%',top:'70%',height:'18%'}],xAxis:[{type:'category',data:dt,gridIndex:0,axisLine:{lineStyle:{color:G}},axisLabel:{color:S,fontSize:10},splitLine:{show:false}},{type:'category',data:dt,gridIndex:1,axisLine:{lineStyle:{color:G}},axisLabel:{show:false},splitLine:{show:false}}],yAxis:[{type:'value',gridIndex:0,splitLine:{lineStyle:{color:G}},axisLabel:{color:S},scale:true},{type:'value',gridIndex:1,splitLine:{show:false},axisLabel:{show:false},axisLine:{show:false}}],series:[{type:'candlestick',data:oh,itemStyle:{color:U,color0:D,borderColor:U,borderColor0:D}},{type:'bar',data:v.map((x,i)=>({value:x,itemStyle:{color:vc[i]}})),xAxisIndex:1,yAxisIndex:1}],dataZoom:[{type:'inside',xAxisIndex:[0,1]}]},true);
 const la=r[r.length-1],pc=((+la[4]-+la[1])/+la[1]*100).toFixed(2);$('kl-st').textContent=`Last: ${(+la[4]).toLocaleString()} (${pc>=0?'+':''}${pc}%) · ${r.length} candles${isSample?' (sample)':''}`}catch(e){$('kl-st').textContent='Error: '+e.message}}
 
 // TA helpers
@@ -648,8 +650,8 @@ gaps.push({idx:i,bull,top:Math.max(gapTop,gapBot),bot:Math.min(gapTop,gapBot),fi
 }}}
 return{wrb,gaps,bars}}
 
-async function lwrb(){const s=$('wrb-s').value,t=$('wrb-t').value,l=+$('wrb-l').value,m=$('wrb-m')?.value||'crypto';$('wrb-st').textContent='Analyzing...';
-try{const r=await fdata(s,t,l),dt=r.map(k=>fd(k[0],t)),oh=r.map(k=>[+k[1],+k[4],+k[3],+k[2]]),v=r.map(k=>+k[5]),vc=r.map(k=>+k[4]>=+k[1]?U+'80':D+'80');
+async function lwrb(){const s=$('wrb-s').value,tf=$('wrb-t').value,l=+$('wrb-l').value,m=$('wrb-m')?.value||'crypto';$('wrb-st').textContent='Analyzing...';
+try{const r=await fdata(s,tf,l),dt=r.map(k=>fd(k[0],tf)),oh=r.map(k=>[+k[1],+k[4],+k[3],+k[2]]),v=r.map(k=>+k[5]),vc=r.map(k=>+k[4]>=+k[1]?U+'80':D+'80');
 const w=detectWRB(r);
 // WRB diamonds with labels
 const wrbMark=w.wrb.map(x=>({
@@ -669,7 +671,7 @@ const proData=w.gaps.filter(g=>g.pro&&!g.filled).map(g=>[dt[g.idx],g.bull?w.bars
 
 const dispName=s.endsWith('USDT')?s:MKT_SYMS[m]?.find(x=>x.v===s)?.l||s;
 ic('c-wrb').setOption({backgroundColor:B,animation:false,
-title:{text:`${dispName} — ${t} WRB/HG ${t('btn_analyze')}`,left:'center',textStyle:{color:T,fontSize:15,fontWeight:700}},
+title:{text:`${dispName} — ${tf} WRB/HG`,left:'center',textStyle:{color:T,fontSize:15,fontWeight:700}},
 tooltip:{trigger:'axis',axisPointer:{type:'cross'},backgroundColor:'#1e1e3d',borderColor:'#2a2a4a',textStyle:{color:T}},
 legend:{data:['Pro Signal'],bottom:4,right:16,textStyle:{color:S,fontSize:10}},
 grid:[{left:'8%',right:'4%',top:'10%',height:'54%'},{left:'8%',right:'4%',top:'68%',height:'14%'}],
