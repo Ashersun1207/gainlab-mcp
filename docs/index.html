@@ -1035,8 +1035,18 @@ async function sendChatMessage(text) {
       aiMsgDiv.appendChild(tag);
       const status = document.createElement('div');
       status.className = 'chat-tool-status';
-      status.textContent = `Calling ${tc.name}... (chart rendering coming soon)`;
+      status.textContent = '⏳ Rendering chart...';
       aiMsgDiv.appendChild(status);
+      chatScrollBottom();
+      // Execute tool and render chart
+      try {
+        const result = await chatExecuteTool(tc.name, parsedArgs);
+        status.textContent = '✅ Chart rendered' + (result ? ' — ' + result : '');
+        document.getElementById('chat-chart-placeholder').style.display = 'none';
+        setTimeout(() => { if (ch['c-chat']) ch['c-chat'].resize(); }, 50);
+      } catch (toolErr) {
+        status.textContent = '❌ Error: ' + toolErr.message;
+      }
       chatScrollBottom();
     }
 
@@ -1062,6 +1072,325 @@ async function sendChatMessage(text) {
 function chatSend() {
   const inp = document.getElementById('chat-input');
   if (inp && inp.value.trim()) sendChatMessage(inp.value.trim());
+}
+
+// ===== CHAT TOOL EXECUTION =====
+
+// Normalize symbol: AI may say "BTC" but fdata needs "BTCUSDT"
+function chatNormSymbol(symbol, market) {
+  if (!symbol) return symbol;
+  const aliases = {
+    'bitcoin': 'BTCUSDT', 'btc': 'BTCUSDT',
+    'ethereum': 'ETHUSDT', 'eth': 'ETHUSDT',
+    'solana': 'SOLUSDT', 'sol': 'SOLUSDT',
+    'bnb': 'BNBUSDT',
+    'gold': 'XAUUSD', 'xau': 'XAUUSD',
+    'silver': 'XAGUSD', 'xag': 'XAGUSD',
+    'moutai': '600519', 'guizhou moutai': '600519',
+    'apple': 'AAPL', 'microsoft': 'MSFT', 'nvidia': 'NVDA',
+    'tesla': 'TSLA', 'amazon': 'AMZN', 'google': 'GOOGL',
+    'spy': 'SPY', 'qqq': 'QQQ',
+    's&p 500': 'SPY', 'nasdaq': 'QQQ'
+  };
+  const lower = symbol.toLowerCase();
+  if (aliases[lower]) return aliases[lower];
+  if (market === 'crypto' && !symbol.endsWith('USDT') && !symbol.endsWith('BTC') && !/^XA[UG]/.test(symbol)) {
+    return symbol.toUpperCase() + 'USDT';
+  }
+  return symbol.toUpperCase();
+}
+
+// Execute a tool call from the AI and render chart to c-chat
+async function chatExecuteTool(toolName, args) {
+  const chart = ic('c-chat');
+
+  if (toolName === 'gainlab_kline') {
+    const sym = chatNormSymbol(args.symbol, args.market);
+    const tf = args.timeframe || args.interval || '1d';
+    const lim = args.limit || 100;
+    const r = await fdata(sym, tf, lim);
+    const dt = r.map(k => fd(k[0], tf));
+    const oh = r.map(k => [+k[1], +k[4], +k[3], +k[2]]);
+    const v = r.map(k => +k[5]);
+    const vc = r.map(k => +k[4] >= +k[1] ? U + '80' : D + '80');
+    const la = r[r.length - 1];
+    const pc = ((+la[4] - +la[1]) / +la[1] * 100).toFixed(2);
+    const title = sym + ' — ' + tf;
+    chart.setOption({
+      backgroundColor: B, animation: false,
+      title: { text: title, left: 'center', textStyle: { color: T, fontSize: 14, fontWeight: 700 } },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, backgroundColor: '#1e1e3d', borderColor: '#2a2a4a', textStyle: { color: T } },
+      grid: [{ left: '8%', right: '4%', top: '10%', height: '56%' }, { left: '8%', right: '4%', top: '70%', height: '18%' }],
+      xAxis: [
+        { type: 'category', data: dt, gridIndex: 0, axisLine: { lineStyle: { color: G } }, axisLabel: { color: S, fontSize: 9 }, splitLine: { show: false } },
+        { type: 'category', data: dt, gridIndex: 1, axisLine: { lineStyle: { color: G } }, axisLabel: { show: false }, splitLine: { show: false } }
+      ],
+      yAxis: [
+        { type: 'value', gridIndex: 0, splitLine: { lineStyle: { color: G } }, axisLabel: { color: S }, scale: true },
+        { type: 'value', gridIndex: 1, splitLine: { show: false }, axisLabel: { show: false }, axisLine: { show: false } }
+      ],
+      series: [
+        { type: 'candlestick', data: oh, itemStyle: { color: U, color0: D, borderColor: U, borderColor0: D } },
+        { type: 'bar', data: v.map((x, i) => ({ value: x, itemStyle: { color: vc[i] } })), xAxisIndex: 1, yAxisIndex: 1 }
+      ],
+      dataZoom: [{ type: 'inside', xAxisIndex: [0, 1] }]
+    }, true);
+    setTimeout(() => { if (ch['c-chat']) ch['c-chat'].resize(); }, 50);
+    return sym + ' ' + tf + ' K-line rendered. Last: ' + (+la[4]).toLocaleString() + ' (' + (pc >= 0 ? '+' : '') + pc + '%)';
+  }
+
+  if (toolName === 'gainlab_overlay') {
+    const symbols = (args.symbols || [args.symbol]).filter(Boolean);
+    const markets = args.markets || [];
+    const tf = args.timeframe || '1d';
+    const lim = args.limit || 180;
+    const normSyms = symbols.map((s, i) => chatNormSymbol(s, markets[i] || args.market || 'crypto'));
+    const allData = await Promise.all(normSyms.map(s => fdata(s, tf, lim)));
+    function norm(r) { const cl = r.map(k => +k[4]), f = cl[0]; return { dates: r.map(k => fd(k[0], tf)), vals: cl.map(v => ((v - f) / f) * 100) }; }
+    const normed = allData.map(r => norm(r));
+    const dates = normed.reduce((a, b) => a.dates.length >= b.dates.length ? a : b).dates;
+    const names = normSyms.map(s => { for (const mk of Object.values(MKT_SYMS)) { const f = mk.find(x => x.v === s); if (f) return f.l; } return s.replace('USDT', ''); });
+    const series = normed.map((n, i) => ({
+      name: names[i], type: 'line', data: n.vals, symbol: 'none',
+      lineStyle: { width: 2, color: P[i % P.length] },
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: P[i % P.length] + '20' }, { offset: 1, color: 'transparent' }] } }
+    }));
+    chart.setOption({
+      backgroundColor: B, animation: false,
+      title: { text: names.join(' vs ') + ' (% change)', left: 'center', textStyle: { color: T, fontSize: 14, fontWeight: 700 } },
+      tooltip: { trigger: 'axis', backgroundColor: '#1e1e3d', borderColor: '#2a2a4a', textStyle: { color: T }, formatter: function(p) { let s = p[0].axisValue + '<br>'; p.forEach(i => { s += `<span style="color:${i.color}">●</span> ${i.seriesName}: ${i.value !== null ? i.value.toFixed(2) + '%' : '—'}<br>`; }); return s; } },
+      legend: { data: names, bottom: 4, textStyle: { color: S, fontSize: 10 } },
+      grid: [{ left: '8%', right: '4%', top: '10%', height: '78%' }],
+      xAxis: [{ type: 'category', data: dates, axisLine: { lineStyle: { color: G } }, axisLabel: { color: S, fontSize: 9 }, splitLine: { show: false } }],
+      yAxis: [{ type: 'value', splitLine: { lineStyle: { color: G } }, axisLabel: { color: S, formatter: v => v.toFixed(0) + '%' } }],
+      series: series, dataZoom: [{ type: 'inside' }]
+    }, true);
+    setTimeout(() => { if (ch['c-chat']) ch['c-chat'].resize(); }, 50);
+    const statParts = normSyms.map((s, i) => { const r = allData[i]; const pct = ((+r[r.length - 1][4] - +r[0][4]) / +r[0][4] * 100).toFixed(1); return names[i] + ': ' + (pct >= 0 ? '+' : '') + pct + '%'; });
+    return 'Overlay chart rendered: ' + statParts.join(', ');
+  }
+
+  if (toolName === 'gainlab_indicators') {
+    const sym = chatNormSymbol(args.symbol, args.market);
+    const tf = args.timeframe || '1d';
+    const sel = args.indicators || ['MA', 'RSI', 'MACD'];
+    const r = await fdata(sym, tf, 120);
+    const dt = r.map(k => fd(k[0], tf));
+    const cl = r.map(k => +k[4]);
+    const oh = r.map(k => [+k[1], +k[4], +k[3], +k[2]]);
+    const v = r.map(k => +k[5]);
+    const vc = r.map(k => +k[4] >= +k[1] ? U + '80' : D + '80');
+    const hasRSI = sel.includes('RSI'), hasMACD = sel.includes('MACD'), hasATR = sel.includes('ATR');
+    let subN = 0; if (hasRSI) subN++; if (hasMACD) subN++; if (hasATR) subN++;
+    const mainH = subN === 0 ? 52 : subN === 1 ? 40 : subN === 2 ? 34 : 28, volH = 8;
+    const grids = [{ left: '8%', right: '4%', top: '8%', height: mainH + '%' }, { left: '8%', right: '4%', top: (10 + mainH) + '%', height: volH + '%' }];
+    const xA = [
+      { type: 'category', data: dt, gridIndex: 0, axisLine: { lineStyle: { color: G } }, axisLabel: { color: S, fontSize: 9 }, splitLine: { show: false } },
+      { type: 'category', data: dt, gridIndex: 1, axisLine: { lineStyle: { color: G } }, axisLabel: { show: false }, splitLine: { show: false } }
+    ];
+    const yA = [
+      { type: 'value', gridIndex: 0, splitLine: { lineStyle: { color: G } }, axisLabel: { color: S }, scale: true },
+      { type: 'value', gridIndex: 1, splitLine: { show: false }, axisLabel: { show: false }, axisLine: { show: false } }
+    ];
+    const ser = [
+      { type: 'candlestick', data: oh, itemStyle: { color: U, color0: D, borderColor: U, borderColor0: D } },
+      { type: 'bar', data: v.map((x, i) => ({ value: x, itemStyle: { color: vc[i] } })), xAxisIndex: 1, yAxisIndex: 1 }
+    ];
+    const dzIdx = [0, 1]; let gi = 2, curTop = 10 + mainH + volH + 2;
+    if (sel.includes('MA')) { [7, 25, 99].forEach((p, pi) => { ser.push({ type: 'line', data: ma(cl, p), name: 'MA' + p, symbol: 'none', lineStyle: { width: 1.2, color: P[pi] }, xAxisIndex: 0, yAxisIndex: 0 }); }); }
+    if (sel.includes('BOLL')) { const bb = boll(cl); ser.push({ type: 'line', data: bb.mid, name: 'BOLL Mid', symbol: 'none', lineStyle: { width: 1, color: '#ffc233' } }); ser.push({ type: 'line', data: bb.up, name: 'BOLL Upper', symbol: 'none', lineStyle: { width: 1, type: 'dashed', color: '#ffc23380' } }); ser.push({ type: 'line', data: bb.lo, name: 'BOLL Lower', symbol: 'none', lineStyle: { width: 1, type: 'dashed', color: '#ffc23380' } }); }
+    if (sel.includes('VWAP')) { const vw = vwap(r); ser.push({ type: 'line', data: vw, name: 'VWAP', symbol: 'none', lineStyle: { width: 2, color: '#ffffff' }, xAxisIndex: 0, yAxisIndex: 0 }); }
+    if (hasRSI) { const subH = subN === 1 ? 18 : 14; grids.push({ left: '8%', right: '4%', top: curTop + '%', height: subH + '%' }); xA.push({ type: 'category', data: dt, gridIndex: gi, axisLine: { lineStyle: { color: G } }, axisLabel: { show: false }, splitLine: { show: false } }); yA.push({ type: 'value', gridIndex: gi, min: 0, max: 100, splitLine: { lineStyle: { color: G } }, axisLabel: { color: S, fontSize: 9 } }); ser.push({ type: 'line', data: rsi(cl), name: 'RSI(14)', symbol: 'none', lineStyle: { width: 1.5, color: '#7c4dff' }, xAxisIndex: gi, yAxisIndex: gi }); dzIdx.push(gi); curTop += subH + 2; gi++; }
+    if (hasMACD) { const subH = subN === 1 ? 18 : 14; grids.push({ left: '8%', right: '4%', top: curTop + '%', height: subH + '%' }); xA.push({ type: 'category', data: dt, gridIndex: gi, axisLine: { lineStyle: { color: G } }, axisLabel: { color: S, fontSize: 9 }, splitLine: { show: false } }); yA.push({ type: 'value', gridIndex: gi, splitLine: { lineStyle: { color: G } }, axisLabel: { color: S, fontSize: 9 } }); const mc = macd(cl); ser.push({ type: 'bar', data: mc.h.map(v => ({ value: v, itemStyle: { color: v >= 0 ? U + 'cc' : D + 'cc' } })), name: 'Hist', xAxisIndex: gi, yAxisIndex: gi }); ser.push({ type: 'line', data: mc.m, name: 'MACD', symbol: 'none', lineStyle: { width: 1.2, color: '#5b8ff9' }, xAxisIndex: gi, yAxisIndex: gi }); ser.push({ type: 'line', data: mc.s, name: 'Signal', symbol: 'none', lineStyle: { width: 1.2, color: '#ff6b6b' }, xAxisIndex: gi, yAxisIndex: gi }); dzIdx.push(gi); gi++; }
+    if (hasATR) { const subH = subN === 1 ? 18 : 14; grids.push({ left: '8%', right: '4%', top: curTop + '%', height: subH + '%' }); xA.push({ type: 'category', data: dt, gridIndex: gi, axisLine: { lineStyle: { color: G } }, axisLabel: { color: S, fontSize: 9 }, splitLine: { show: false } }); yA.push({ type: 'value', gridIndex: gi, splitLine: { lineStyle: { color: G } }, axisLabel: { color: S, fontSize: 9 } }); const at = atr(r); ser.push({ type: 'line', data: at, name: 'ATR(14)', symbol: 'none', lineStyle: { width: 1.5, color: '#ff6b6b' }, xAxisIndex: gi, yAxisIndex: gi }); dzIdx.push(gi); curTop += subH + 2; gi++; }
+    chart.setOption({
+      backgroundColor: B, animation: false,
+      title: { text: sym + ' — ' + sel.join('+'), left: 'center', textStyle: { color: T, fontSize: 14, fontWeight: 700 } },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, backgroundColor: '#1e1e3d', borderColor: '#2a2a4a', textStyle: { color: T, fontSize: 11 } },
+      legend: { data: ser.filter(s => s.name).map(s => s.name), bottom: 0, textStyle: { color: S, fontSize: 10 } },
+      grid: grids, xAxis: xA, yAxis: yA, series: ser, dataZoom: [{ type: 'inside', xAxisIndex: dzIdx }]
+    }, true);
+    setTimeout(() => { if (ch['c-chat']) ch['c-chat'].resize(); }, 50);
+    return sym + ' indicators rendered: ' + sel.join(', ');
+  }
+
+  if (toolName === 'gainlab_fundamentals') {
+    const sym = (args.symbol || 'AAPL').toUpperCase();
+    const mode = args.mode || 'overview';
+    let fdData;
+    try { fdData = await (await fetch('./sample-fundamentals.json')).json(); } catch(e) { fdData = null; }
+    // Fallback inline data
+    const revData = { AAPL: [365.8, 394.3, 383.3, 391.0, 420.5], MSFT: [168.1, 198.3, 211.9, 245.1, 277.0], GOOGL: [257.6, 282.8, 307.4, 350.0, 381.0], NVDA: [16.7, 26.9, 60.9, 130.5, 195.0] };
+    const years = ['2021', '2022', '2023', '2024', '2025'];
+    const revArr = (fdData && fdData[sym] && fdData[sym].revenue) ? fdData[sym].revenue : (revData[sym] || revData.AAPL);
+    chart.setOption({
+      backgroundColor: B, animation: true,
+      title: { text: sym + ' — Revenue (Billion USD)', left: 'center', textStyle: { color: T, fontSize: 14, fontWeight: 700 } },
+      tooltip: { trigger: 'axis', backgroundColor: '#1e1e3d', borderColor: '#2a2a4a', textStyle: { color: T }, formatter: function(p) { let s = p[0].axisValue + '<br>'; p.forEach(i => { s += `<span style="color:${i.color}">●</span> Revenue: $${i.value}B<br>`; }); return s; } },
+      grid: { left: '10%', right: '4%', top: '14%', bottom: '12%' },
+      xAxis: { type: 'category', data: years.slice(0, revArr.length), axisLine: { lineStyle: { color: G } }, axisLabel: { color: S } },
+      yAxis: { type: 'value', splitLine: { lineStyle: { color: G } }, axisLabel: { color: S, formatter: v => '$' + v + 'B' } },
+      series: [{ name: 'Revenue', type: 'bar', data: revArr, itemStyle: { color: P[0], borderRadius: [4, 4, 0, 0] } }]
+    }, true);
+    setTimeout(() => { if (ch['c-chat']) ch['c-chat'].resize(); }, 50);
+    return sym + ' fundamentals rendered (revenue bar chart).';
+  }
+
+  if (toolName === 'gainlab_volume_profile') {
+    const sym = chatNormSymbol(args.symbol, args.market);
+    const tf = args.timeframe || '1d';
+    const lim = args.limit || 120;
+    const rows = args.rows || 24;
+    const r = await fdata(sym, tf, lim);
+    const dt = r.map(k => fd(k[0], tf));
+    const oh = r.map(k => [+k[1], +k[4], +k[3], +k[2]]);
+    const v = r.map(k => +k[5]);
+    const vc = r.map(k => +k[4] >= +k[1] ? U + '80' : D + '80');
+    const vp = calcVP(r, rows);
+    const maxV = Math.max(...vp.rows.map(r => r.vol));
+    const vpPriceMin = vp.rows[0].pMin, vpPriceMax = vp.rows[vp.rows.length - 1].pMax;
+    const priceMargin = (vpPriceMax - vpPriceMin) * 0.02;
+    chart.setOption({
+      backgroundColor: B, animation: false,
+      title: { text: sym + ' — ' + tf + ' VP', left: 'center', textStyle: { color: T, fontSize: 14, fontWeight: 700 } },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, backgroundColor: '#1e1e3d', borderColor: '#2a2a4a', textStyle: { color: T } },
+      grid: [
+        { left: '6%', right: '28%', top: '8%', height: '60%' },
+        { left: '6%', right: '28%', top: '72%', height: '12%' },
+        { left: '74%', right: '2%', top: '8%', height: '60%' }
+      ],
+      xAxis: [
+        { type: 'category', data: dt, gridIndex: 0, axisLine: { lineStyle: { color: G } }, axisLabel: { color: S, fontSize: 9 }, splitLine: { show: false } },
+        { type: 'category', data: dt, gridIndex: 1, axisLine: { lineStyle: { color: G } }, axisLabel: { show: false }, splitLine: { show: false } },
+        { type: 'value', gridIndex: 2, axisLine: { lineStyle: { color: G } }, axisLabel: { show: false }, splitLine: { show: false }, max: maxV * 1.1 }
+      ],
+      yAxis: [
+        { type: 'value', gridIndex: 0, splitLine: { lineStyle: { color: G } }, axisLabel: { color: S }, min: vpPriceMin - priceMargin, max: vpPriceMax + priceMargin },
+        { type: 'value', gridIndex: 1, splitLine: { show: false }, axisLabel: { show: false }, axisLine: { show: false } },
+        { type: 'value', gridIndex: 2, axisLine: { lineStyle: { color: G } }, axisLabel: { color: S, fontSize: 7, formatter: v => v.toFixed(0) }, splitLine: { lineStyle: { color: G, opacity: 0.3 } }, min: vpPriceMin - priceMargin, max: vpPriceMax + priceMargin }
+      ],
+      series: [
+        {
+          type: 'candlestick', data: oh, xAxisIndex: 0, yAxisIndex: 0,
+          itemStyle: { color: U, color0: D, borderColor: U, borderColor0: D },
+          markLine: { silent: true, symbol: 'none', lineStyle: { width: 2 }, data: [
+            { yAxis: vp.poc, lineStyle: { color: '#ff4757', type: 'solid' }, label: { formatter: 'POC ' + vp.poc.toFixed(2), color: '#ff4757', fontSize: 10, fontWeight: 'bold', position: 'end' } },
+            { yAxis: vp.vah, lineStyle: { color: '#ffc233', type: 'dashed' }, label: { formatter: 'VAH ' + vp.vah.toFixed(2), color: '#ffc233', fontSize: 10, position: 'end' } },
+            { yAxis: vp.val, lineStyle: { color: '#ffc233', type: 'dashed' }, label: { formatter: 'VAL ' + vp.val.toFixed(2), color: '#ffc233', fontSize: 10, position: 'end' } }
+          ]},
+          markArea: { silent: true, data: [[{ yAxis: vp.val, itemStyle: { color: '#ffc23315' } }, { yAxis: vp.vah }]] }
+        },
+        { type: 'bar', data: v.map((x, i) => ({ value: x, itemStyle: { color: vc[i] } })), xAxisIndex: 1, yAxisIndex: 1 },
+        {
+          name: 'VP', type: 'custom', xAxisIndex: 2, yAxisIndex: 2,
+          renderItem: function(params, api) {
+            const idx = params.dataIndex; const row = vp.rows[idx]; if (!row) return;
+            const buyV = row.bv, sellV = row.sv;
+            const yBottom = api.coord([0, row.pMin])[1]; const yTop = api.coord([0, row.pMax])[1];
+            const xBuyEnd = api.coord([buyV, 0])[0]; const xSellEnd = api.coord([buyV + sellV, 0])[0];
+            const xOrigin = api.coord([0, 0])[0]; const isPOC = idx === vp.pocIdx;
+            const group = { type: 'group', children: [] };
+            if (buyV > 0) group.children.push({ type: 'rect', shape: { x: xOrigin, y: yTop, width: xBuyEnd - xOrigin, height: yBottom - yTop }, style: { fill: isPOC ? '#fff' : U, stroke: isPOC ? '#fff' : 'transparent', lineWidth: isPOC ? 2 : 0 } });
+            if (sellV > 0) group.children.push({ type: 'rect', shape: { x: xBuyEnd, y: yTop, width: xSellEnd - xBuyEnd, height: yBottom - yTop }, style: { fill: isPOC ? '#ccc' : D, stroke: isPOC ? '#fff' : 'transparent', lineWidth: isPOC ? 2 : 0 } });
+            return group;
+          },
+          data: vp.rows.map(row => [row.bv + row.sv, row.pMid])
+        }
+      ],
+      dataZoom: [{ type: 'inside', xAxisIndex: [0, 1] }]
+    }, true);
+    setTimeout(() => { if (ch['c-chat']) ch['c-chat'].resize(); }, 50);
+    return sym + ' Volume Profile rendered. POC: ' + vp.poc.toFixed(2) + ' | VAH: ' + vp.vah.toFixed(2) + ' | VAL: ' + vp.val.toFixed(2);
+  }
+
+  if (toolName === 'gainlab_heatmap') {
+    const market = args.market || 'crypto';
+    const lim = args.limit || 50;
+    const minV = args.min_volume || 1000000;
+    const res = await (await fetch('https://api.binance.com/api/v3/ticker/24hr')).json();
+    let items = res.filter(t => {
+      if (!t.symbol.endsWith('USDT')) return false;
+      const b = cBase(t.symbol); if (EXCL.has(b)) return false;
+      return parseFloat(t.quoteVolume || '0') >= minV;
+    }).map(t => {
+      const b = cBase(t.symbol);
+      return { code: b, chg: parseFloat(t.priceChangePercent || '0'), vol: parseFloat(t.quoteVolume || '0'), price: parseFloat(t.lastPrice || '0'), sector: CSEC[b] || 'Other' };
+    }).sort((a, b) => b.vol - a.vol).slice(0, lim);
+    const sm = new Map();
+    items.forEach(i => { if (!sm.has(i.sector)) sm.set(i.sector, []); sm.get(i.sector).push(i); });
+    const tree = [...sm.entries()].map(([sec, stocks]) => ({
+      name: sec,
+      children: stocks.map(s => ({ name: s.code, value: s.vol, itemStyle: { color: cChg(s.chg), borderColor: B, borderWidth: 1 }, _d: { price: s.price, chg: s.chg, vol: s.vol, sector: s.sector } }))
+    }));
+    chart.setOption({
+      backgroundColor: B,
+      title: { text: 'Crypto Sector Heatmap (24h Change)', left: 'center', top: 8, textStyle: { color: T, fontSize: 14, fontWeight: 700 } },
+      tooltip: { formatter: i => { const d = i.data?._d; if (!d) return '<b>' + i.name + '</b>'; const s = d.chg >= 0 ? '+' : ''; return `<b>${i.name}</b><br>Price: $${d.price.toLocaleString()}<br>Change: <span style="color:${d.chg >= 0 ? U : D}">${s}${d.chg.toFixed(2)}%</span><br>24h Vol: $${(d.vol / 1e6).toFixed(1)}M<br>${d.sector}`; } },
+      series: [{
+        type: 'treemap', data: tree, width: '94%', height: '84%', top: 44, left: 'center', roam: false, nodeClick: false, breadcrumb: { show: false },
+        levels: [
+          { itemStyle: { borderColor: '#333', borderWidth: 0, gapWidth: 2 } },
+          { itemStyle: { borderColor: '#555', borderWidth: 2, gapWidth: 2 }, upperLabel: { show: true, height: 20, color: S, fontSize: 11, fontWeight: 'bold', backgroundColor: 'transparent' } },
+          { itemStyle: { borderColor: B, borderWidth: 1, gapWidth: 1 }, label: { show: true, formatter: p => { const d = p.data?._d; if (!d) return p.name; const s = d.chg >= 0 ? '+' : ''; return '{name|' + p.name + '}\n{chg|' + s + d.chg.toFixed(1) + '%}'; }, rich: { name: { fontSize: 12, color: '#fff', fontWeight: 'bold', lineHeight: 16 }, chg: { fontSize: 10, color: '#ddd', lineHeight: 14 } }, align: 'center', verticalAlign: 'middle' } }
+        ]
+      }]
+    }, true);
+    setTimeout(() => { if (ch['c-chat']) ch['c-chat'].resize(); }, 50);
+    return 'Crypto heatmap rendered: ' + items.length + ' tokens, ' + sm.size + ' sectors.';
+  }
+
+  if (toolName === 'gainlab_wrb_scoring') {
+    const sym = chatNormSymbol(args.symbol, args.market);
+    const tf = args.timeframe || '1d';
+    const lim = args.limit || 150;
+    const r = await fdata(sym, tf, lim);
+    const dt = r.map(k => fd(k[0], tf));
+    const oh = r.map(k => [+k[1], +k[4], +k[3], +k[2]]);
+    const v = r.map(k => +k[5]);
+    const vc = r.map(k => +k[4] >= +k[1] ? U + '80' : D + '80');
+    const w = detectWRB(r);
+    const wrbMark = w.wrb.map(x => ({
+      coord: [dt[x.idx], x.bull ? w.bars[x.idx].h * 1.008 : w.bars[x.idx].l * 0.992],
+      symbol: 'diamond', symbolSize: 10,
+      itemStyle: { color: '#7c4dff' },
+      label: { show: true, formatter: x.bull ? '涨' : '跌', color: x.bull ? U : D, fontSize: 9, fontWeight: 'bold', position: x.bull ? 'top' : 'bottom', offset: [0, x.bull ? -2 : 2] }
+    }));
+    const gapAreas = w.gaps.filter(g => !g.filled).map(g => {
+      const color = g.pro ? '#ffc23335' : (g.bull ? '#00d4aa25' : '#ff475725');
+      return [{ xAxis: dt[g.idx], yAxis: g.top, itemStyle: { color } }, { xAxis: dt[dt.length - 1], yAxis: g.bot }];
+    });
+    const proData = w.gaps.filter(g => g.pro && !g.filled).map(g => ({ value: [dt[g.idx], g.bull ? w.bars[g.idx].l * 0.996 : w.bars[g.idx].h * 1.004] }));
+    chart.setOption({
+      backgroundColor: B, animation: false,
+      title: { text: sym + ' — ' + tf + ' WRB/HG', left: 'center', textStyle: { color: T, fontSize: 14, fontWeight: 700 } },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, backgroundColor: '#1e1e3d', borderColor: '#2a2a4a', textStyle: { color: T } },
+      legend: { data: ['Pro Signal'], bottom: 4, right: 16, textStyle: { color: S, fontSize: 10 } },
+      grid: [{ left: '8%', right: '4%', top: '10%', height: '54%' }, { left: '8%', right: '4%', top: '68%', height: '14%' }],
+      xAxis: [
+        { type: 'category', data: dt, gridIndex: 0, axisLine: { lineStyle: { color: G } }, axisLabel: { color: S, fontSize: 9 }, splitLine: { show: false } },
+        { type: 'category', data: dt, gridIndex: 1, axisLine: { lineStyle: { color: G } }, axisLabel: { show: false }, splitLine: { show: false } }
+      ],
+      yAxis: [
+        { type: 'value', gridIndex: 0, splitLine: { lineStyle: { color: G } }, axisLabel: { color: S }, scale: true },
+        { type: 'value', gridIndex: 1, splitLine: { show: false }, axisLabel: { show: false }, axisLine: { show: false } }
+      ],
+      series: [
+        {
+          type: 'candlestick', data: oh, itemStyle: { color: U, color0: D, borderColor: U, borderColor0: D },
+          markPoint: { data: wrbMark, animation: false },
+          markArea: { silent: true, data: gapAreas }
+        },
+        { name: 'Pro Signal', type: 'scatter', data: proData, symbol: 'diamond', symbolSize: 14, itemStyle: { color: '#ffc233', borderColor: '#fff', borderWidth: 2 }, z: 10 },
+        { type: 'bar', data: v.map((x, i) => ({ value: x, itemStyle: { color: vc[i] } })), xAxisIndex: 1, yAxisIndex: 1 }
+      ],
+      dataZoom: [{ type: 'inside', xAxisIndex: [0, 1] }]
+    }, true);
+    setTimeout(() => { if (ch['c-chat']) ch['c-chat'].resize(); }, 50);
+    const activeG = w.gaps.filter(g => !g.filled).length, proG = w.gaps.filter(g => g.pro && !g.filled).length;
+    return sym + ' WRB/HG analysis rendered. WRB: ' + w.wrb.length + ' | Active gaps: ' + activeG + ' | Pro signals: ' + proG;
+  }
+
+  throw new Error('Unknown tool: ' + toolName);
 }
 
 // Init chat panel on first show: insert welcome message
