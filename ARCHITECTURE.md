@@ -53,8 +53,10 @@ gainlab-mcp/
 │   ├── utils/                — 纯函数单元测试
 │   └── render/               — 渲染测试
 ├── docs/                     — GitHub Pages 展示页
-│   ├── index.html            — 单文件展示页（~750行，8 tab）
-│   └── sample-data.js        — 非加密市场预拉取数据（EODHD）
+│   ├── index.html            — 单文件展示页（~1586行，9 tab，106KB JS）
+│   ├── sample-data.js        — 非加密市场预拉取数据（10标的，~55KB）
+│   ├── sample-fundamentals.json — 基本面预拉取数据（AAPL/MSFT/GOOGL/NVDA）
+│   └── DEMO-ARCHITECTURE.md  — 展示页架构文档（51 函数索引，改展示页前必读）
 ├── dist/                     — TypeScript 编译输出
 ├── scripts/
 │   ├── check-all.sh          — 全项目 6 节质量检查（每日 cron + 手动）
@@ -146,6 +148,40 @@ switch(market) {
 | src/utils/crypto-sectors.ts | tests/utils/crypto-sectors.test.ts |
 | src/data/*.ts | tests/data/*.test.ts |
 | src/render/engine.ts | tests/render/engine.test.ts + kline.test.ts + wrb-scoring.test.ts |
+
+## 展示页 AI Chat（第 9 个 Tab）
+
+展示页内置了 AI Chat 对话式交互，详见 `docs/DEMO-ARCHITECTURE.md`。
+
+```
+浏览器 → Cloudflare Worker（API 代理）→ MiniMax M2
+                                        ↓
+                               SSE 流式响应 + tool call
+                                        ↓
+                          前端 chatExecuteTool() 渲染 ECharts
+```
+
+- Worker URL: `https://gainlab-api.asher-sun.workers.dev/api/chat`
+- 两种渲染：Toolbar Go（本地直渲）+ AI 对话（经 Worker）
+- 7 个工具全部可通过对话触发
+- 布局：桌面 75% 图表 + 280px 侧栏 | 手机 tab 切换
+
+## 数据层架构（规划中）
+
+当前 MCP Server 的数据层在 `src/data/` 内。产品数据层规划：
+
+```
+L0  Data Router    — 根据 market + 用户 key 选数据源
+L1  Data Adapters  — 统一不同 API 返回格式为 [ts, o, h, l, c, v]
+L2  Cache          — CF KV（服务端）+ localStorage（客户端）
+L3  接口           — MCP tool / REST API / WebSocket push
+```
+
+**免费层**：Binance（加密实时）+ Tushare（A股延迟）+ Yahoo Finance（美股延迟）
+**BYOK 层**：用户自带 EODHD / FMP / Binance Key 解锁高级数据
+**配置存储**：`~/.gainlab/config.json`（配置与对话分离，MCP tool 管理）
+
+详见 `gainlab-research/docs/plans/2026-02-17-data-layer-discussion.md`
 
 ## 已知陷阱
 
