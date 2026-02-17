@@ -17,7 +17,7 @@ yellow() { printf "\033[33m⚠ %s\033[0m\n" "$1"; TOTAL_WARNS=$((TOTAL_WARNS+1))
 green()  { printf "\033[32m✔ %s\033[0m\n" "$1"; }
 
 # ── 1. Research 知识库检查 ──
-section "1/6 Research 知识库"
+section "1/7 Research 知识库"
 if [ -f "$RESEARCH/tools/check.sh" ]; then
   bash "$RESEARCH/tools/check.sh" 2>&1 | tail -5
 else
@@ -25,7 +25,7 @@ else
 fi
 
 # ── 2. MCP Server README ↔ 代码检查 ──
-section "2/6 MCP Server README ↔ 代码"
+section "2/7 MCP Server README ↔ 代码"
 if [ -f "$MCP/scripts/check-docs.sh" ]; then
   bash "$MCP/scripts/check-docs.sh" 2>&1 | tail -5
 else
@@ -33,7 +33,7 @@ else
 fi
 
 # ── 3. ARCHITECTURE.md ↔ 代码一致性 ──
-section "3/6 ARCHITECTURE.md 一致性"
+section "3/7 ARCHITECTURE.md 一致性"
 if [ -f "$MCP/ARCHITECTURE.md" ]; then
   # 检查 ARCHITECTURE.md 提到的每个 .ts 文件是否存在
   ARCH_MISSING=0
@@ -68,7 +68,7 @@ else
 fi
 
 # ── 4. 展示页基础检查 ──
-section "4/6 展示页检查"
+section "4/7 展示页检查"
 DEMO="$MCP/docs/index.html"
 if [ -f "$DEMO" ]; then
   # ECharts coord 陷阱：检查是否有数字索引 coord（不含 api.coord 的 custom series）
@@ -103,8 +103,38 @@ else
   red "index.html not found"
 fi
 
-# ── 5. Git 状态 ──
-section "5/6 Git 状态"
+# ── 5. PRD 纪律检查 ──
+section "5/7 PRD 纪律检查"
+cd "$MCP" 2>/dev/null
+# 看最近 3 次 commit 是否涉及核心代码
+CORE_CHANGES=$(git log -3 --name-only --pretty=format: 2>/dev/null | grep -E '^(src/tools/|src/render/|src/utils/|docs/index\.html)' | sort -u || true)
+if [ -z "$CORE_CHANGES" ]; then
+  green "最近 3 次 commit 无核心代码改动，PRD 不要求"
+else
+  CORE_FILE_COUNT=$(echo "$CORE_CHANGES" | wc -l | tr -d ' ')
+  if [ "$CORE_FILE_COUNT" -le 1 ]; then
+    green "最近核心改动仅 1 文件（可能是 bug fix），PRD 不强制"
+  else
+    # 多文件核心改动 → 检查是否有对应的 plan 文件
+    # 找最近核心改动的 commit 日期
+    CORE_DATE=$(git log -3 --format='%ci' -- src/tools/ src/render/ src/utils/ docs/index.html 2>/dev/null | head -1 | cut -d' ' -f1)
+    [ -z "$CORE_DATE" ] && CORE_DATE=$(git log -1 --format='%ci' 2>/dev/null | cut -d' ' -f1)
+    MONTH_PREFIX=$(echo "$CORE_DATE" | cut -d'-' -f1-2)
+    # 检查 plans/ 下是否有该日期前后的 plan/prd 文件（不含模板）
+    PRD_COUNT=$(find "$RESEARCH/docs/plans/" -name "${MONTH_PREFIX}*" -type f ! -name "*template*" 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$PRD_COUNT" -gt 0 ]; then
+      green "本月有 ${PRD_COUNT} 份计划文档覆盖核心改动"
+    else
+      yellow "最近 commit 改了 ${CORE_FILE_COUNT} 个核心文件，但无对应 PRD"
+      echo "    涉及文件："
+      echo "$CORE_CHANGES" | head -5 | sed 's/^/      /'
+      echo "    → 新功能/多文件改动请先写 PRD（docs/plans/${CORE_DATE}-xxx-prd.md）"
+    fi
+  fi
+fi
+
+# ── 6. Git 状态 ──
+section "6/7 Git 状态"
 for repo in "$MCP" "$RESEARCH"; do
   name=$(basename "$repo")
   cd "$repo" 2>/dev/null || continue
@@ -122,8 +152,8 @@ for repo in "$MCP" "$RESEARCH"; do
   fi
 done
 
-# ── 6. 同步状态 ──
-section "6/6 文档同步"
+# ── 7. 同步状态 ──
+section "7/7 文档同步"
 SYNC_DIR="$WORKSPACE/memory/gainlab-sync"
 SYNC_PAIRS="README.md:gainlab-research-index.md status.md:gainlab-status.md decisions.md:gainlab-decisions-sync.md"
 SYNC_FAIL=0
