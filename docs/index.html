@@ -94,6 +94,19 @@
     .chat-send-btn { background: var(--acc); color: #fff; border: none; padding: 7px 14px; border-radius: 6px; font-family: var(--f); font-size: .8em; font-weight: 700; cursor: pointer; transition: .18s; white-space: nowrap; }
     .chat-send-btn:hover { opacity: .85; }
     .chat-send-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .chat-toolbar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--bdr); background: var(--bg2); flex-wrap: wrap; }
+    .chat-toolbar select { background: var(--bg); color: var(--txt); border: 1px solid var(--bdr); padding: 4px 8px; border-radius: 5px; font-family: var(--f); font-size: .78em; cursor: pointer; }
+    .chat-toolbar select:hover { border-color: var(--up); }
+    .chat-tf-group { display: flex; gap: 2px; }
+    .chat-tf-btn { background: var(--bg); color: var(--dim); border: 1px solid var(--bdr); padding: 3px 10px; font-family: var(--m); font-size: .74em; cursor: pointer; transition: .15s; }
+    .chat-tf-btn:first-child { border-radius: 4px 0 0 4px; }
+    .chat-tf-btn:last-child { border-radius: 0 4px 4px 0; }
+    .chat-tf-btn.on { background: var(--up); color: var(--bg); border-color: var(--up); font-weight: 700; }
+    .chat-ind-group { display: flex; gap: 3px; }
+    .chat-ind-chip { background: var(--bg); color: var(--dim); border: 1px solid var(--bdr); padding: 2px 8px; border-radius: 10px; font-family: var(--m); font-size: .72em; cursor: pointer; transition: .15s; }
+    .chat-ind-chip.on { background: #5b8ff930; color: var(--acc); border-color: var(--acc); }
+    .chat-toolbar .go { background: var(--up); color: var(--bg); font-weight: 700; font-size: .78em; padding: 4px 14px; border: none; border-radius: 5px; cursor: pointer; }
+    .chat-toolbar .go:hover { opacity: .85; }
     .chat-mobile-tabs { display: none; padding: 6px 10px; gap: 4px; border-bottom: 1px solid var(--bdr); background: var(--bg2); }
     .chat-mtab { flex: 1; background: var(--bg); color: var(--dim); border: 1px solid var(--bdr); padding: 7px 0; border-radius: 6px; font-family: var(--f); font-size: .8em; font-weight: 600; cursor: pointer; text-align: center; transition: .18s; }
     .chat-mtab.active { background: var(--card); border-color: var(--acc); color: var(--acc); }
@@ -240,6 +253,31 @@
     <div class="chat-main">
       <!-- 左侧/图表区 -->
       <div class="chat-chart-main" id="chat-chart-main">
+        <!-- Chart Toolbar -->
+        <div class="chat-toolbar" id="chat-toolbar">
+          <select id="ct-market" class="mkt-sel" onchange="chatToolbarUpdateSymbols()">
+            <option value="crypto">🔗 Crypto</option>
+            <option value="us_stock">🇺🇸 US Stock</option>
+            <option value="a_stock">🇨🇳 A-Share</option>
+            <option value="commodity">🥇 Gold/Silver</option>
+            <option value="index">📊 Index</option>
+          </select>
+          <select id="ct-symbol"></select>
+          <div class="chat-tf-group">
+            <button class="chat-tf-btn" data-tf="1h" onclick="chatTfSelect(this)">1H</button>
+            <button class="chat-tf-btn" data-tf="4h" onclick="chatTfSelect(this)">4H</button>
+            <button class="chat-tf-btn on" data-tf="1d" onclick="chatTfSelect(this)">1D</button>
+            <button class="chat-tf-btn" data-tf="1w" onclick="chatTfSelect(this)">1W</button>
+          </div>
+          <div class="chat-ind-group">
+            <button class="chat-ind-chip" data-ind="MA" onclick="chatIndToggle(this)">MA</button>
+            <button class="chat-ind-chip" data-ind="RSI" onclick="chatIndToggle(this)">RSI</button>
+            <button class="chat-ind-chip" data-ind="MACD" onclick="chatIndToggle(this)">MACD</button>
+            <button class="chat-ind-chip" data-ind="BOLL" onclick="chatIndToggle(this)">BOLL</button>
+            <button class="chat-ind-chip" data-ind="VOL" onclick="chatIndToggle(this)">VOL</button>
+          </div>
+          <button class="go" onclick="chatToolbarGo()" data-i18n="chat_tb_go">生成</button>
+        </div>
         <div class="chat-chart-wrap" id="chat-chart-wrap">
           <!-- 占位符（未生成图表时显示） -->
           <div class="chat-chart-empty" id="chat-chart-empty">
@@ -366,6 +404,7 @@ const I18N = {
     chat_p_vp: '📊 BTC 成交量分布',
     chat_p_heatmap: '🔥 加密热力图',
     chat_p_wrb: '🎯 BTC WRB 分析',
+    chat_tb_go: '生成',
     mkt_crypto: '🔗 加密货币',
     mkt_us_stock: '🇺🇸 美股',
     mkt_a_stock: '🇨🇳 A股',
@@ -410,6 +449,7 @@ const I18N = {
     chat_p_vp: '📊 BTC Volume Profile',
     chat_p_heatmap: '🔥 Crypto Heatmap',
     chat_p_wrb: '🎯 BTC WRB Analysis',
+    chat_tb_go: 'Go',
     mkt_crypto: '🔗 Crypto',
     mkt_us_stock: '🇺🇸 US Stock',
     mkt_a_stock: '🇨🇳 A-Share',
@@ -1148,6 +1188,44 @@ function chatSend() {
   if (inp && inp.value.trim()) sendChatMessage(inp.value.trim());
 }
 
+// ===== CHART TOOLBAR =====
+
+function chatToolbarUpdateSymbols() {
+  const market = document.getElementById('ct-market').value;
+  const syms = MKT_SYMS[market] || MKT_SYMS.crypto;
+  const sel = document.getElementById('ct-symbol');
+  sel.innerHTML = syms.map(s => `<option value="${s.v}">${s.l}</option>`).join('');
+}
+
+function chatTfSelect(btn) {
+  document.querySelectorAll('.chat-tf-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+}
+
+function chatIndToggle(chip) {
+  chip.classList.toggle('on');
+}
+
+async function chatToolbarGo() {
+  const market = document.getElementById('ct-market').value;
+  const symbol = document.getElementById('ct-symbol').value;
+  const tf = document.querySelector('.chat-tf-btn.on')?.dataset.tf || '1d';
+  const inds = [...document.querySelectorAll('.chat-ind-chip.on')].map(c => c.dataset.ind);
+  const statusEl = document.getElementById('chat-chart-status');
+  if (statusEl) statusEl.textContent = '⏳ Loading...';
+  try {
+    let result;
+    if (inds.length > 0) {
+      result = await chatExecuteTool('gainlab_indicators', { symbol, market, timeframe: tf, indicators: inds });
+    } else {
+      result = await chatExecuteTool('gainlab_kline', { symbol, market, timeframe: tf, limit: 100 });
+    }
+    if (statusEl) statusEl.textContent = result || '';
+  } catch(e) {
+    if (statusEl) statusEl.textContent = '❌ ' + (e.message || e);
+  }
+}
+
 // ===== CHAT TOOL EXECUTION =====
 
 // Normalize symbol: AI may say "BTC" but fdata needs "BTCUSDT"
@@ -1471,12 +1549,14 @@ async function chatExecuteTool(toolName, args, msgDiv) {
   throw new Error('Unknown tool: ' + toolName);
 }
 
-// Init chat panel on first show: insert welcome message
+// Init chat panel on first show: insert welcome message + populate toolbar
 function initChatPanel() {
   const msgsEl = document.getElementById('chat-messages');
   if (!msgsEl || msgsEl.dataset.inited) return;
   msgsEl.dataset.inited = '1';
   chatAddMsg('ai', t('chat_welcome'));
+  // Populate toolbar symbol dropdown
+  chatToolbarUpdateSymbols();
 }
 
 // Extend sw() to init chat on first visit
