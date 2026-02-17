@@ -56,17 +56,12 @@
     .lb.on{background:var(--card);border-color:var(--bdr-a);color:var(--up)}
     /* ===== AI Chat Panel ===== */
     #p-chat{overflow:visible}
-    .chat-layout{display:flex;height:580px;gap:0}
-    .chat-chart-area{flex:1 1 55%;min-width:0;position:relative;border-right:1px solid var(--bdr);background:var(--bg)}
-    #c-chat{width:100%;height:100%}
-    .chat-chart-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
-    .chat-chart-ph-inner{text-align:center}
-    .chat-area{flex:0 0 45%;min-width:300px;display:flex;flex-direction:column;background:var(--bg2)}
+    .chat-container{max-width:720px;margin:0 auto;display:flex;flex-direction:column;height:640px}
     .chat-messages{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}
     .chat-messages::-webkit-scrollbar{width:4px}.chat-messages::-webkit-scrollbar-track{background:transparent}.chat-messages::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:2px}
-    .chat-msg{max-width:88%;padding:10px 13px;border-radius:10px;font-size:.84em;line-height:1.55;word-break:break-word}
-    .chat-msg.user{align-self:flex-end;background:var(--card);border:1px solid var(--up);border-radius:10px 10px 2px 10px;color:var(--txt)}
-    .chat-msg.ai{align-self:flex-start;background:var(--card);border:1px solid var(--acc);border-radius:10px 10px 10px 2px;color:var(--txt)}
+    .chat-msg{padding:10px 13px;border-radius:10px;font-size:.84em;line-height:1.55;word-break:break-word}
+    .chat-msg.user{max-width:80%;align-self:flex-end;background:var(--card);border:1px solid var(--up);border-radius:10px 10px 2px 10px;color:var(--txt)}
+    .chat-msg.ai{max-width:95%;align-self:flex-start;background:var(--card);border:1px solid var(--acc);border-radius:10px 10px 10px 2px;color:var(--txt)}
     .chat-msg .chat-msg-label{font-size:.72em;color:var(--mut);margin-bottom:4px;font-weight:600}
     .chat-msg.user .chat-msg-label{color:var(--up)}
     .chat-msg.ai .chat-msg-label{color:var(--acc)}
@@ -77,16 +72,18 @@
     .chat-tool-tag{display:inline-flex;align-items:center;gap:5px;margin-top:6px;padding:4px 9px;background:#5b8ff918;border:1px solid var(--acc);border-radius:5px;font-size:.74em;font-family:var(--m);color:var(--acc)}
     .chat-tool-tag .tt-name{font-weight:700}.chat-tool-tag .tt-params{color:var(--dim);font-size:.9em;margin-left:2px}
     .chat-tool-status{font-size:.76em;color:var(--dim);margin-top:5px;font-style:italic}
-    .chat-presets{padding:8px 12px;display:flex;flex-wrap:wrap;gap:5px;border-top:1px solid var(--bdr)}
-    .chat-preset-btn{background:var(--bg);color:var(--dim);border:1px solid var(--bdr);padding:5px 9px;border-radius:5px;font-family:var(--f);font-size:.76em;cursor:pointer;transition:.18s;white-space:nowrap}
-    .chat-preset-btn:hover{border-color:var(--up);color:var(--txt);background:#1a1a3a}
+    .chat-chart-embed{width:100%;height:400px;margin:8px 0;border-radius:8px;overflow:hidden;background:var(--bg);border:1px solid var(--bdr)}
+    .chat-presets{padding:10px 12px;display:flex;gap:6px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid var(--bdr);scrollbar-width:none;-ms-overflow-style:none}
+    .chat-presets::-webkit-scrollbar{display:none}
+    .chat-preset-btn{background:var(--bg);color:var(--dim);border:1px solid var(--bdr);padding:5px 12px;border-radius:20px;font-family:var(--f);font-size:.76em;cursor:pointer;transition:.18s;white-space:nowrap;flex-shrink:0}
+    .chat-preset-btn:hover{border-color:var(--up);color:var(--txt);background:#1a1a3a;transform:translateY(-1px);box-shadow:0 0 8px var(--up)30}
     .chat-input-row{display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--bdr);background:var(--bg2)}
     .chat-input{flex:1;background:var(--bg);color:var(--txt);border:1px solid var(--bdr);padding:8px 12px;border-radius:7px;font-family:var(--f);font-size:.84em;outline:none;transition:.18s}
     .chat-input:focus{border-color:var(--acc)}.chat-input::placeholder{color:var(--mut)}
     .chat-input:disabled{opacity:.5}
     .chat-send-btn{background:var(--acc);color:#fff;border:none;padding:8px 16px;border-radius:7px;font-family:var(--f);font-size:.84em;font-weight:700;cursor:pointer;transition:.18s;white-space:nowrap}
     .chat-send-btn:hover{opacity:.85}.chat-send-btn:disabled{opacity:.5;cursor:not-allowed}
-    @media(max-width:800px){.chat-layout{flex-direction:column;height:auto}.chat-chart-area{flex:0 0 300px;border-right:none;border-bottom:1px solid var(--bdr)}.chat-area{flex:0 0 auto;min-width:0}.chat-messages{min-height:200px;max-height:280px}}
+    @media(max-width:800px){.chat-container{height:500px}.chat-chart-embed{height:300px}.chat-msg.ai{max-width:98%}}
     @media(max-width:640px){.logo{font-size:2.2em}.tb{padding:7px 10px;font-size:.76em}.cw{height:340px!important}.feats{grid-template-columns:1fr 1fr}}
   </style>
 </head>
@@ -212,37 +209,23 @@
 
   <!-- AI Chat Panel -->
   <div class="pnl" id="p-chat">
-    <div class="chat-layout">
-      <!-- Chart area -->
-      <div class="chat-chart-area">
-        <div class="cw" id="c-chat" style="height:100%"></div>
-        <div class="chat-chart-placeholder" id="chat-chart-placeholder">
-          <div class="chat-chart-ph-inner">
-            <div style="font-size:3em;margin-bottom:12px">📊</div>
-            <div style="color:var(--dim);font-size:.9em">图表将在这里显示</div>
-            <div style="color:var(--mut);font-size:.78em;margin-top:4px">Chart will appear here</div>
-          </div>
-        </div>
+    <div class="chat-container">
+      <!-- Preset questions (top, horizontal scroll) -->
+      <div class="chat-presets" id="chat-presets">
+        <button class="chat-preset-btn" onclick="sendChatMessage('Show BTC daily K-line')">📊 BTC K-line</button>
+        <button class="chat-preset-btn" onclick="sendChatMessage('Compare BTC, ETH and Gold')">📈 BTC vs ETH vs Gold</button>
+        <button class="chat-preset-btn" onclick="sendChatMessage('BTC with RSI, MACD, Bollinger Bands')">🔧 BTC Indicators</button>
+        <button class="chat-preset-btn" onclick="sendChatMessage('Show Apple fundamentals analysis')">📋 Apple Fundamentals</button>
+        <button class="chat-preset-btn" onclick="sendChatMessage('Show BTC volume profile')">📊 BTC Volume Profile</button>
+        <button class="chat-preset-btn" onclick="sendChatMessage('Show crypto sector heatmap')">🔥 Crypto Heatmap</button>
+        <button class="chat-preset-btn" onclick="sendChatMessage('Analyze BTC for WRB patterns')">🎯 BTC WRB Analysis</button>
       </div>
-      <!-- Chat area -->
-      <div class="chat-area">
-        <!-- Messages -->
-        <div class="chat-messages" id="chat-messages"></div>
-        <!-- Preset questions -->
-        <div class="chat-presets" id="chat-presets">
-          <button class="chat-preset-btn" onclick="sendChatMessage('Show BTC daily K-line')">📊 BTC K-line</button>
-          <button class="chat-preset-btn" onclick="sendChatMessage('Compare BTC, ETH and Gold')">📈 BTC vs ETH vs Gold</button>
-          <button class="chat-preset-btn" onclick="sendChatMessage('BTC with RSI, MACD, Bollinger Bands')">🔧 BTC Indicators</button>
-          <button class="chat-preset-btn" onclick="sendChatMessage('Show Apple fundamentals analysis')">📋 Apple Fundamentals</button>
-          <button class="chat-preset-btn" onclick="sendChatMessage('Show BTC volume profile')">📊 BTC Volume Profile</button>
-          <button class="chat-preset-btn" onclick="sendChatMessage('Show crypto sector heatmap')">🔥 Crypto Heatmap</button>
-          <button class="chat-preset-btn" onclick="sendChatMessage('Analyze BTC for WRB patterns')">🎯 BTC WRB Analysis</button>
-        </div>
-        <!-- Input area -->
-        <div class="chat-input-row">
-          <input class="chat-input" id="chat-input" type="text" data-i18n-placeholder="chat_placeholder" placeholder="输入金融分析问题..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSend()}">
-          <button class="chat-send-btn" id="chat-send-btn" onclick="chatSend()" data-i18n="chat_send">发送</button>
-        </div>
+      <!-- Messages (charts embed here) -->
+      <div class="chat-messages" id="chat-messages"></div>
+      <!-- Input area -->
+      <div class="chat-input-row">
+        <input class="chat-input" id="chat-input" type="text" data-i18n-placeholder="chat_placeholder" placeholder="输入金融分析问题..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSend()}">
+        <button class="chat-send-btn" id="chat-send-btn" onclick="chatSend()" data-i18n="chat_send">发送</button>
       </div>
     </div>
   </div>
@@ -905,8 +888,6 @@ function chatSetBusy(busy) {
 
 async function sendChatMessage(text) {
   if (chatBusy || !text.trim()) return;
-  // Scroll chat into view & hide placeholder
-  document.getElementById('chat-chart-placeholder').style.display = 'none';
   // Init chat on first use (show welcome if empty)
   const msgsEl = document.getElementById('chat-messages');
   if (!msgsEl) return;
@@ -1038,12 +1019,10 @@ async function sendChatMessage(text) {
       status.textContent = '⏳ Rendering chart...';
       aiMsgDiv.appendChild(status);
       chatScrollBottom();
-      // Execute tool and render chart
+      // Execute tool and render chart (embedded in aiMsgDiv)
       try {
-        const result = await chatExecuteTool(tc.name, parsedArgs);
+        const result = await chatExecuteTool(tc.name, parsedArgs, aiMsgDiv);
         status.textContent = '✅ Chart rendered' + (result ? ' — ' + result : '');
-        document.getElementById('chat-chart-placeholder').style.display = 'none';
-        setTimeout(() => { if (ch['c-chat']) ch['c-chat'].resize(); }, 50);
       } catch (toolErr) {
         status.textContent = '❌ Error: ' + toolErr.message;
       }
@@ -1100,9 +1079,16 @@ function chatNormSymbol(symbol, market) {
   return symbol.toUpperCase();
 }
 
-// Execute a tool call from the AI and render chart to c-chat
-async function chatExecuteTool(toolName, args) {
-  const chart = ic('c-chat');
+// Execute a tool call from the AI and render chart embedded in msgDiv
+async function chatExecuteTool(toolName, args, msgDiv) {
+  const chartId = 'chat-echart-' + Date.now();
+  const chartDiv = document.createElement('div');
+  chartDiv.id = chartId;
+  chartDiv.className = 'chat-chart-embed';
+  if (msgDiv) msgDiv.appendChild(chartDiv);
+  const chart = echarts.init(chartDiv);
+  setTimeout(() => chart.resize(), 100);
+  window.addEventListener('resize', () => chart.resize());
 
   if (toolName === 'gainlab_kline') {
     const sym = chatNormSymbol(args.symbol, args.market);
@@ -1135,7 +1121,6 @@ async function chatExecuteTool(toolName, args) {
       ],
       dataZoom: [{ type: 'inside', xAxisIndex: [0, 1] }]
     }, true);
-    setTimeout(() => { if (ch['c-chat']) ch['c-chat'].resize(); }, 50);
     return sym + ' ' + tf + ' K-line rendered. Last: ' + (+la[4]).toLocaleString() + ' (' + (pc >= 0 ? '+' : '') + pc + '%)';
   }
 
@@ -1165,7 +1150,6 @@ async function chatExecuteTool(toolName, args) {
       yAxis: [{ type: 'value', splitLine: { lineStyle: { color: G } }, axisLabel: { color: S, formatter: v => v.toFixed(0) + '%' } }],
       series: series, dataZoom: [{ type: 'inside' }]
     }, true);
-    setTimeout(() => { if (ch['c-chat']) ch['c-chat'].resize(); }, 50);
     const statParts = normSyms.map((s, i) => { const r = allData[i]; const pct = ((+r[r.length - 1][4] - +r[0][4]) / +r[0][4] * 100).toFixed(1); return names[i] + ': ' + (pct >= 0 ? '+' : '') + pct + '%'; });
     return 'Overlay chart rendered: ' + statParts.join(', ');
   }
@@ -1210,7 +1194,6 @@ async function chatExecuteTool(toolName, args) {
       legend: { data: ser.filter(s => s.name).map(s => s.name), bottom: 0, textStyle: { color: S, fontSize: 10 } },
       grid: grids, xAxis: xA, yAxis: yA, series: ser, dataZoom: [{ type: 'inside', xAxisIndex: dzIdx }]
     }, true);
-    setTimeout(() => { if (ch['c-chat']) ch['c-chat'].resize(); }, 50);
     return sym + ' indicators rendered: ' + sel.join(', ');
   }
 
@@ -1232,7 +1215,6 @@ async function chatExecuteTool(toolName, args) {
       yAxis: { type: 'value', splitLine: { lineStyle: { color: G } }, axisLabel: { color: S, formatter: v => '$' + v + 'B' } },
       series: [{ name: 'Revenue', type: 'bar', data: revArr, itemStyle: { color: P[0], borderRadius: [4, 4, 0, 0] } }]
     }, true);
-    setTimeout(() => { if (ch['c-chat']) ch['c-chat'].resize(); }, 50);
     return sym + ' fundamentals rendered (revenue bar chart).';
   }
 
@@ -1299,7 +1281,6 @@ async function chatExecuteTool(toolName, args) {
       ],
       dataZoom: [{ type: 'inside', xAxisIndex: [0, 1] }]
     }, true);
-    setTimeout(() => { if (ch['c-chat']) ch['c-chat'].resize(); }, 50);
     return sym + ' Volume Profile rendered. POC: ' + vp.poc.toFixed(2) + ' | VAH: ' + vp.vah.toFixed(2) + ' | VAL: ' + vp.val.toFixed(2);
   }
 
@@ -1335,7 +1316,6 @@ async function chatExecuteTool(toolName, args) {
         ]
       }]
     }, true);
-    setTimeout(() => { if (ch['c-chat']) ch['c-chat'].resize(); }, 50);
     return 'Crypto heatmap rendered: ' + items.length + ' tokens, ' + sm.size + ' sectors.';
   }
 
@@ -1385,7 +1365,6 @@ async function chatExecuteTool(toolName, args) {
       ],
       dataZoom: [{ type: 'inside', xAxisIndex: [0, 1] }]
     }, true);
-    setTimeout(() => { if (ch['c-chat']) ch['c-chat'].resize(); }, 50);
     const activeG = w.gaps.filter(g => !g.filled).length, proG = w.gaps.filter(g => g.pro && !g.filled).length;
     return sym + ' WRB/HG analysis rendered. WRB: ' + w.wrb.length + ' | Active gaps: ' + activeG + ' | Pro signals: ' + proG;
   }
