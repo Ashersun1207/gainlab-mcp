@@ -54,6 +54,39 @@
     .lb{background:0;border:1px solid var(--bdr);color:var(--dim);padding:4px 10px;border-radius:5px;font-size:.78em;cursor:pointer;transition:.2s}
     .lb:hover{background:#1a1a3a;border-color:var(--up)}
     .lb.on{background:var(--card);border-color:var(--bdr-a);color:var(--up)}
+    /* ===== AI Chat Panel ===== */
+    #p-chat{overflow:visible}
+    .chat-layout{display:flex;height:580px;gap:0}
+    .chat-chart-area{flex:1 1 55%;min-width:0;position:relative;border-right:1px solid var(--bdr);background:var(--bg)}
+    #c-chat{width:100%;height:100%}
+    .chat-chart-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+    .chat-chart-ph-inner{text-align:center}
+    .chat-area{flex:0 0 45%;min-width:300px;display:flex;flex-direction:column;background:var(--bg2)}
+    .chat-messages{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}
+    .chat-messages::-webkit-scrollbar{width:4px}.chat-messages::-webkit-scrollbar-track{background:transparent}.chat-messages::-webkit-scrollbar-thumb{background:var(--bdr);border-radius:2px}
+    .chat-msg{max-width:88%;padding:10px 13px;border-radius:10px;font-size:.84em;line-height:1.55;word-break:break-word}
+    .chat-msg.user{align-self:flex-end;background:var(--card);border:1px solid var(--up);border-radius:10px 10px 2px 10px;color:var(--txt)}
+    .chat-msg.ai{align-self:flex-start;background:var(--card);border:1px solid var(--acc);border-radius:10px 10px 10px 2px;color:var(--txt)}
+    .chat-msg .chat-msg-label{font-size:.72em;color:var(--mut);margin-bottom:4px;font-weight:600}
+    .chat-msg.user .chat-msg-label{color:var(--up)}
+    .chat-msg.ai .chat-msg-label{color:var(--acc)}
+    .chat-typing{display:flex;gap:4px;align-items:center;padding:2px 0}
+    .chat-typing span{width:6px;height:6px;border-radius:50%;background:var(--acc);display:inline-block;animation:chatdot 1.2s infinite}
+    .chat-typing span:nth-child(2){animation-delay:.2s}.chat-typing span:nth-child(3){animation-delay:.4s}
+    @keyframes chatdot{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+    .chat-tool-tag{display:inline-flex;align-items:center;gap:5px;margin-top:6px;padding:4px 9px;background:#5b8ff918;border:1px solid var(--acc);border-radius:5px;font-size:.74em;font-family:var(--m);color:var(--acc)}
+    .chat-tool-tag .tt-name{font-weight:700}.chat-tool-tag .tt-params{color:var(--dim);font-size:.9em;margin-left:2px}
+    .chat-tool-status{font-size:.76em;color:var(--dim);margin-top:5px;font-style:italic}
+    .chat-presets{padding:8px 12px;display:flex;flex-wrap:wrap;gap:5px;border-top:1px solid var(--bdr)}
+    .chat-preset-btn{background:var(--bg);color:var(--dim);border:1px solid var(--bdr);padding:5px 9px;border-radius:5px;font-family:var(--f);font-size:.76em;cursor:pointer;transition:.18s;white-space:nowrap}
+    .chat-preset-btn:hover{border-color:var(--up);color:var(--txt);background:#1a1a3a}
+    .chat-input-row{display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--bdr);background:var(--bg2)}
+    .chat-input{flex:1;background:var(--bg);color:var(--txt);border:1px solid var(--bdr);padding:8px 12px;border-radius:7px;font-family:var(--f);font-size:.84em;outline:none;transition:.18s}
+    .chat-input:focus{border-color:var(--acc)}.chat-input::placeholder{color:var(--mut)}
+    .chat-input:disabled{opacity:.5}
+    .chat-send-btn{background:var(--acc);color:#fff;border:none;padding:8px 16px;border-radius:7px;font-family:var(--f);font-size:.84em;font-weight:700;cursor:pointer;transition:.18s;white-space:nowrap}
+    .chat-send-btn:hover{opacity:.85}.chat-send-btn:disabled{opacity:.5;cursor:not-allowed}
+    @media(max-width:800px){.chat-layout{flex-direction:column;height:auto}.chat-chart-area{flex:0 0 300px;border-right:none;border-bottom:1px solid var(--bdr)}.chat-area{flex:0 0 auto;min-width:0}.chat-messages{min-height:200px;max-height:280px}}
     @media(max-width:640px){.logo{font-size:2.2em}.tb{padding:7px 10px;font-size:.76em}.cw{height:340px!important}.feats{grid-template-columns:1fr 1fr}}
   </style>
 </head>
@@ -83,6 +116,7 @@
   <button class="tb" onclick="sw('wrb',this)" data-i18n="tab_wrb">🎯 WRB评分</button>
   <button class="tb" onclick="sw('heatmap',this)" data-i18n="tab_heatmap">🔥 热力图</button>
   <button class="tb" onclick="sw('corr',this)" data-i18n="tab_corr">🔗 相关性</button>
+  <button class="tb" onclick="sw('chat',this)" data-i18n="tab_chat">🤖 AI Chat</button>
 </div>
 
 <div class="demo">
@@ -175,6 +209,43 @@
     </div>
     <div class="cw" id="c-corr" style="height:520px"></div>
   </div>
+
+  <!-- AI Chat Panel -->
+  <div class="pnl" id="p-chat">
+    <div class="chat-layout">
+      <!-- Chart area -->
+      <div class="chat-chart-area">
+        <div class="cw" id="c-chat" style="height:100%"></div>
+        <div class="chat-chart-placeholder" id="chat-chart-placeholder">
+          <div class="chat-chart-ph-inner">
+            <div style="font-size:3em;margin-bottom:12px">📊</div>
+            <div style="color:var(--dim);font-size:.9em">图表将在这里显示</div>
+            <div style="color:var(--mut);font-size:.78em;margin-top:4px">Chart will appear here</div>
+          </div>
+        </div>
+      </div>
+      <!-- Chat area -->
+      <div class="chat-area">
+        <!-- Messages -->
+        <div class="chat-messages" id="chat-messages"></div>
+        <!-- Preset questions -->
+        <div class="chat-presets" id="chat-presets">
+          <button class="chat-preset-btn" onclick="sendChatMessage('Show BTC daily K-line')">📊 BTC K-line</button>
+          <button class="chat-preset-btn" onclick="sendChatMessage('Compare BTC, ETH and Gold')">📈 BTC vs ETH vs Gold</button>
+          <button class="chat-preset-btn" onclick="sendChatMessage('BTC with RSI, MACD, Bollinger Bands')">🔧 BTC Indicators</button>
+          <button class="chat-preset-btn" onclick="sendChatMessage('Show Apple fundamentals analysis')">📋 Apple Fundamentals</button>
+          <button class="chat-preset-btn" onclick="sendChatMessage('Show BTC volume profile')">📊 BTC Volume Profile</button>
+          <button class="chat-preset-btn" onclick="sendChatMessage('Show crypto sector heatmap')">🔥 Crypto Heatmap</button>
+          <button class="chat-preset-btn" onclick="sendChatMessage('Analyze BTC for WRB patterns')">🎯 BTC WRB Analysis</button>
+        </div>
+        <!-- Input area -->
+        <div class="chat-input-row">
+          <input class="chat-input" id="chat-input" type="text" data-i18n-placeholder="chat_placeholder" placeholder="输入金融分析问题..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSend()}">
+          <button class="chat-send-btn" id="chat-send-btn" onclick="chatSend()" data-i18n="chat_send">发送</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="code-s">
@@ -252,6 +323,11 @@ const I18N = {
     tab_wrb: '🎯 WRB评分',
     tab_heatmap: '🔥 热力图',
     tab_corr: '🔗 相关性',
+    tab_chat: '🤖 AI 对话',
+    chat_placeholder: '输入金融分析问题...',
+    chat_send: '发送',
+    chat_thinking: '思考中...',
+    chat_welcome: '你好！我是 GainLab Demo Agent，可以用自然语言帮你生成金融图表。点击下方预设问题，或者输入自定义问题试试看！',
     mkt_crypto: '🔗 加密货币',
     mkt_us_stock: '🇺🇸 美股',
     mkt_a_stock: '🇨🇳 A股',
@@ -281,6 +357,11 @@ const I18N = {
     tab_wrb: '🎯 WRB Scoring',
     tab_heatmap: '🔥 Heatmap',
     tab_corr: '🔗 Correlation',
+    tab_chat: '🤖 AI Chat',
+    chat_placeholder: 'Ask a financial analysis question...',
+    chat_send: 'Send',
+    chat_thinking: 'Thinking...',
+    chat_welcome: 'Hello! I am GainLab Demo Agent. I can generate financial charts using natural language. Click a preset question below, or type your own!',
     mkt_crypto: '🔗 Crypto',
     mkt_us_stock: '🇺🇸 US Stock',
     mkt_a_stock: '🇨🇳 A-Share',
@@ -748,6 +829,268 @@ initSelects();
 setLang('zh');
 // Auto-load first tab
 lkl();
+
+// ===== AI CHAT =====
+const CHAT_API = 'https://gainlab-api.asher-sun.workers.dev/api/chat';
+let chatMessages = []; // conversation history
+let chatBusy = false;
+
+// Strip <think>...</think> from text (including across chunks)
+let chatThinkBuf = '';
+function filterThink(raw) {
+  // Accumulate raw text and strip think blocks
+  let result = '';
+  let s = chatThinkBuf + raw;
+  chatThinkBuf = '';
+  // Remove complete think blocks
+  s = s.replace(/<think>[\s\S]*?<\/think>/g, '');
+  // If partial open tag at end, hold it in buffer
+  const openIdx = s.lastIndexOf('<think>');
+  if (openIdx !== -1) {
+    chatThinkBuf = s.slice(openIdx);
+    s = s.slice(0, openIdx);
+  }
+  return s;
+}
+
+function chatScrollBottom() {
+  const el = document.getElementById('chat-messages');
+  if (el) el.scrollTop = el.scrollHeight;
+}
+
+function chatAddMsg(role, text) {
+  const el = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + role;
+  const label = document.createElement('div');
+  label.className = 'chat-msg-label';
+  label.textContent = role === 'user' ? 'You' : 'GainLab AI';
+  const body = document.createElement('div');
+  body.className = 'chat-msg-body';
+  body.textContent = text;
+  div.appendChild(label);
+  div.appendChild(body);
+  el.appendChild(div);
+  chatScrollBottom();
+  return body; // return body so we can update it
+}
+
+function chatAddTyping() {
+  const el = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg ai';
+  div.id = 'chat-typing-indicator';
+  const label = document.createElement('div');
+  label.className = 'chat-msg-label';
+  label.textContent = 'GainLab AI';
+  const typing = document.createElement('div');
+  typing.className = 'chat-typing';
+  typing.innerHTML = '<span></span><span></span><span></span>';
+  div.appendChild(label);
+  div.appendChild(typing);
+  el.appendChild(div);
+  chatScrollBottom();
+  return div;
+}
+
+function chatSetBusy(busy) {
+  chatBusy = busy;
+  const inp = document.getElementById('chat-input');
+  const btn = document.getElementById('chat-send-btn');
+  const presets = document.querySelectorAll('.chat-preset-btn');
+  if (inp) inp.disabled = busy;
+  if (btn) btn.disabled = busy;
+  presets.forEach(b => b.disabled = busy);
+}
+
+async function sendChatMessage(text) {
+  if (chatBusy || !text.trim()) return;
+  // Scroll chat into view & hide placeholder
+  document.getElementById('chat-chart-placeholder').style.display = 'none';
+  // Init chat on first use (show welcome if empty)
+  const msgsEl = document.getElementById('chat-messages');
+  if (!msgsEl) return;
+
+  // Add user message to UI
+  chatAddMsg('user', text);
+  // Add to history
+  chatMessages.push({ role: 'user', content: text });
+  // Clear input
+  const inp = document.getElementById('chat-input');
+  if (inp) inp.value = '';
+  chatSetBusy(true);
+
+  // Typing indicator
+  const typingEl = chatAddTyping();
+
+  // AI message body (will replace typing indicator)
+  let aiMsgBody = null;
+  let aiMsgDiv = null;
+  let accumulated = ''; // full text accumulated
+  let toolCallsAcc = {}; // accumulate tool calls by index
+  chatThinkBuf = '';
+
+  try {
+    const resp = await fetch(CHAT_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: chatMessages })
+    });
+
+    if (!resp.ok) {
+      throw new Error('API error: ' + resp.status);
+    }
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let done = false;
+
+    while (!done) {
+      const { value, done: streamDone } = await reader.read();
+      done = streamDone;
+      if (value) buf += decoder.decode(value, { stream: !done });
+
+      // Process complete lines
+      const lines = buf.split('\n');
+      buf = lines.pop(); // keep incomplete last line
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed === 'data: [DONE]') continue;
+        if (!trimmed.startsWith('data: ')) continue;
+        const jsonStr = trimmed.slice(6);
+        let chunk;
+        try { chunk = JSON.parse(jsonStr); } catch { continue; }
+
+        const delta = chunk?.choices?.[0]?.delta;
+        if (!delta) continue;
+
+        // Handle text content
+        if (delta.content) {
+          const filtered = filterThink(delta.content);
+          if (filtered) {
+            accumulated += filtered;
+            // Create AI msg bubble if not yet
+            if (!aiMsgDiv) {
+              typingEl.remove();
+              aiMsgDiv = document.createElement('div');
+              aiMsgDiv.className = 'chat-msg ai';
+              const lbl = document.createElement('div');
+              lbl.className = 'chat-msg-label';
+              lbl.textContent = 'GainLab AI';
+              aiMsgBody = document.createElement('div');
+              aiMsgBody.className = 'chat-msg-body';
+              aiMsgDiv.appendChild(lbl);
+              aiMsgDiv.appendChild(aiMsgBody);
+              msgsEl.appendChild(aiMsgDiv);
+            }
+            aiMsgBody.textContent = accumulated;
+            chatScrollBottom();
+          }
+        }
+
+        // Handle tool calls
+        if (delta.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            const idx = tc.index ?? 0;
+            if (!toolCallsAcc[idx]) toolCallsAcc[idx] = { id: '', name: '', args: '' };
+            if (tc.id) toolCallsAcc[idx].id = tc.id;
+            if (tc.function?.name) toolCallsAcc[idx].name = tc.function.name;
+            if (tc.function?.arguments) toolCallsAcc[idx].args += tc.function.arguments;
+          }
+        }
+      }
+    }
+
+    // Flush remaining think buffer
+    const leftover = filterThink('');
+    if (leftover) { accumulated += leftover; if (aiMsgBody) aiMsgBody.textContent = accumulated; }
+
+    // Handle accumulated tool calls
+    for (const [idx, tc] of Object.entries(toolCallsAcc)) {
+      if (!tc.name) continue;
+      // Create AI bubble if not yet (tool-only response)
+      if (!aiMsgDiv) {
+        typingEl.remove();
+        aiMsgDiv = document.createElement('div');
+        aiMsgDiv.className = 'chat-msg ai';
+        const lbl = document.createElement('div');
+        lbl.className = 'chat-msg-label';
+        lbl.textContent = 'GainLab AI';
+        aiMsgBody = document.createElement('div');
+        aiMsgBody.className = 'chat-msg-body';
+        aiMsgBody.textContent = t('chat_thinking');
+        aiMsgDiv.appendChild(lbl);
+        aiMsgDiv.appendChild(aiMsgBody);
+        msgsEl.appendChild(aiMsgDiv);
+      }
+      // Show tool call tag
+      let parsedArgs = {};
+      try { parsedArgs = JSON.parse(tc.args); } catch {}
+      const tag = document.createElement('div');
+      tag.className = 'chat-tool-tag';
+      const paramStr = Object.entries(parsedArgs).slice(0, 3).map(([k,v]) => `${k}=${JSON.stringify(v)}`).join(', ');
+      tag.innerHTML = `<span class="tt-name">⚙️ ${tc.name}</span><span class="tt-params">(${paramStr})</span>`;
+      aiMsgDiv.appendChild(tag);
+      const status = document.createElement('div');
+      status.className = 'chat-tool-status';
+      status.textContent = `Calling ${tc.name}... (chart rendering coming soon)`;
+      aiMsgDiv.appendChild(status);
+      chatScrollBottom();
+    }
+
+    // Remove typing if nothing rendered yet
+    if (!aiMsgDiv) {
+      typingEl.remove();
+      // Show fallback
+      const body = chatAddMsg('ai', '(No response)');
+    } else {
+      // Add AI reply to history
+      chatMessages.push({ role: 'assistant', content: accumulated || t('chat_thinking') });
+    }
+
+  } catch (err) {
+    typingEl.remove();
+    chatAddMsg('ai', '⚠️ Error: ' + err.message);
+  }
+
+  chatSetBusy(false);
+  chatScrollBottom();
+}
+
+function chatSend() {
+  const inp = document.getElementById('chat-input');
+  if (inp && inp.value.trim()) sendChatMessage(inp.value.trim());
+}
+
+// Init chat panel on first show: insert welcome message
+function initChatPanel() {
+  const msgsEl = document.getElementById('chat-messages');
+  if (!msgsEl || msgsEl.dataset.inited) return;
+  msgsEl.dataset.inited = '1';
+  chatAddMsg('ai', t('chat_welcome'));
+}
+
+// Extend sw() to init chat on first visit
+// (Note: sw is a function declaration; we wrap it via an outer variable)
+const _swOrig = sw;
+// Redefine sw via variable assignment to avoid hoisting conflict
+// eslint-disable-next-line no-func-assign
+sw = function(n, el) {
+  _swOrig(n, el);
+  if (n === 'chat') initChatPanel();
+};
+
+// Extend setLang to update chat placeholder
+const _setLangOrig = setLang;
+setLang = function(lang) {
+  _setLangOrig(lang);
+  const inp = document.getElementById('chat-input');
+  if (inp) inp.placeholder = t('chat_placeholder');
+  const btn = document.getElementById('chat-send-btn');
+  if (btn) btn.textContent = t('chat_send');
+};
 </script>
 </body>
 </html>

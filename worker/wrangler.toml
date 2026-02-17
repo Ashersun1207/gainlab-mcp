@@ -1,0 +1,6 @@
+name = "gainlab-api"
+main = "src/index.ts"
+compatibility_date = "2025-02-17"
+
+[vars]
+ALLOWED_ORIGIN = "https://ashersun1207.github.io"
