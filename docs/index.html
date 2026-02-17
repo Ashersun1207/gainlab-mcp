@@ -234,8 +234,8 @@
   <div class="pnl" id="p-chat">
     <!-- 手机端 tab 切换按钮 -->
     <div class="chat-mobile-tabs" id="chat-mobile-tabs">
-      <button class="chat-mtab active" onclick="chatMobileTab('chart')" id="chat-mtab-chart">📊 图表</button>
-      <button class="chat-mtab" onclick="chatMobileTab('conv')" id="chat-mtab-conv">💬 对话</button>
+      <button class="chat-mtab active" onclick="chatMobileTab('chart')" id="chat-mtab-chart" data-i18n="chat_tab_chart">📊 图表</button>
+      <button class="chat-mtab" onclick="chatMobileTab('conv')" id="chat-mtab-conv" data-i18n="chat_tab_conv">💬 对话</button>
     </div>
     <div class="chat-main">
       <!-- 左侧/图表区 -->
@@ -247,7 +247,7 @@
             <div style="color:var(--dim);font-size:.9em" data-i18n="chat_chart_hint">选择预设问题或输入来生成图表</div>
           </div>
           <!-- 图表容器 -->
-          <div id="c-chat-main" style="width:100%;height:100%;display:none"></div>
+          <div id="c-chat-main" style="position:absolute;inset:0;display:none"></div>
         </div>
         <!-- 图表下方状态栏 -->
         <div class="chat-chart-status" id="chat-chart-status"></div>
@@ -259,13 +259,13 @@
         </div>
         <div class="chat-messages" id="chat-messages"></div>
         <div class="chat-presets" id="chat-presets">
-          <button class="chat-preset-btn" onclick="sendChatMessage('Show BTC daily K-line')">📊 BTC K-line</button>
-          <button class="chat-preset-btn" onclick="sendChatMessage('Compare BTC, ETH and Gold')">📈 BTC vs ETH vs Gold</button>
-          <button class="chat-preset-btn" onclick="sendChatMessage('BTC with RSI, MACD, Bollinger Bands')">🔧 BTC Indicators</button>
-          <button class="chat-preset-btn" onclick="sendChatMessage('Show Apple fundamentals analysis')">📋 Apple Fundamentals</button>
-          <button class="chat-preset-btn" onclick="sendChatMessage('Show BTC volume profile')">📊 BTC Volume Profile</button>
-          <button class="chat-preset-btn" onclick="sendChatMessage('Show crypto sector heatmap')">🔥 Crypto Heatmap</button>
-          <button class="chat-preset-btn" onclick="sendChatMessage('Analyze BTC for WRB patterns')">🎯 BTC WRB Analysis</button>
+          <button class="chat-preset-btn" onclick="sendChatMessage('Show BTC daily K-line')" data-i18n="chat_p_kline">📊 BTC K-line</button>
+          <button class="chat-preset-btn" onclick="sendChatMessage('Compare BTC, ETH and Gold')" data-i18n="chat_p_overlay">📈 BTC vs ETH vs Gold</button>
+          <button class="chat-preset-btn" onclick="sendChatMessage('BTC with RSI, MACD, Bollinger Bands')" data-i18n="chat_p_indicators">🔧 BTC Indicators</button>
+          <button class="chat-preset-btn" onclick="sendChatMessage('Show Apple fundamentals analysis')" data-i18n="chat_p_fundamentals">📋 Apple Fundamentals</button>
+          <button class="chat-preset-btn" onclick="sendChatMessage('Show BTC volume profile')" data-i18n="chat_p_vp">📊 BTC Volume Profile</button>
+          <button class="chat-preset-btn" onclick="sendChatMessage('Show crypto sector heatmap')" data-i18n="chat_p_heatmap">🔥 Crypto Heatmap</button>
+          <button class="chat-preset-btn" onclick="sendChatMessage('Analyze BTC for WRB patterns')" data-i18n="chat_p_wrb">🎯 BTC WRB Analysis</button>
         </div>
         <div class="chat-input-row">
           <input class="chat-input" id="chat-input" type="text" data-i18n-placeholder="chat_placeholder" placeholder="输入金融分析问题..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();chatSend()}">
@@ -359,6 +359,13 @@ const I18N = {
     chat_chart_hint: '选择预设问题或输入来生成图表',
     chat_tab_chart: '📊 图表',
     chat_tab_conv: '💬 对话',
+    chat_p_kline: '📊 BTC K线',
+    chat_p_overlay: '📈 BTC vs ETH vs 黄金',
+    chat_p_indicators: '🔧 BTC 技术指标',
+    chat_p_fundamentals: '📋 苹果基本面',
+    chat_p_vp: '📊 BTC 成交量分布',
+    chat_p_heatmap: '🔥 加密热力图',
+    chat_p_wrb: '🎯 BTC WRB 分析',
     mkt_crypto: '🔗 加密货币',
     mkt_us_stock: '🇺🇸 美股',
     mkt_a_stock: '🇨🇳 A股',
@@ -396,6 +403,13 @@ const I18N = {
     chat_chart_hint: 'Select a preset or type to generate a chart',
     chat_tab_chart: '📊 Chart',
     chat_tab_conv: '💬 Chat',
+    chat_p_kline: '📊 BTC K-line',
+    chat_p_overlay: '📈 BTC vs ETH vs Gold',
+    chat_p_indicators: '🔧 BTC Indicators',
+    chat_p_fundamentals: '📋 Apple Fundamentals',
+    chat_p_vp: '📊 BTC Volume Profile',
+    chat_p_heatmap: '🔥 Crypto Heatmap',
+    chat_p_wrb: '🎯 BTC WRB Analysis',
     mkt_crypto: '🔗 Crypto',
     mkt_us_stock: '🇺🇸 US Stock',
     mkt_a_stock: '🇨🇳 A-Share',
@@ -866,7 +880,7 @@ lkl();
 
 // ===== AI CHAT =====
 const CHAT_API = 'https://gainlab-api.asher-sun.workers.dev/api/chat';
-let chatMessages = []; // conversation history
+let chatMessages = []; // conversation history (trimmed to last 20 messages to limit payload size)
 let chatBusy = false;
 
 // Strip <think>...</think> from text (including across chunks)
@@ -945,8 +959,9 @@ async function sendChatMessage(text) {
 
   // Add user message to UI
   chatAddMsg('user', text);
-  // Add to history
+  // Add to history (keep last 20 messages to avoid unbounded growth)
   chatMessages.push({ role: 'user', content: text });
+  if (chatMessages.length > 20) chatMessages = chatMessages.slice(-20);
   // Clear input
   const inp = document.getElementById('chat-input');
   if (inp) inp.value = '';
@@ -1063,7 +1078,9 @@ async function sendChatMessage(text) {
       const tag = document.createElement('div');
       tag.className = 'chat-tool-tag';
       const paramStr = Object.entries(parsedArgs).slice(0, 3).map(([k,v]) => `${k}=${JSON.stringify(v)}`).join(', ');
-      tag.innerHTML = `<span class="tt-name">⚙️ ${tc.name}</span><span class="tt-params">(${paramStr})</span>`;
+      const ttName = document.createElement('span'); ttName.className = 'tt-name'; ttName.textContent = '⚙️ ' + tc.name;
+      const ttParams = document.createElement('span'); ttParams.className = 'tt-params'; ttParams.textContent = '(' + paramStr + ')';
+      tag.appendChild(ttName); tag.appendChild(ttParams);
       aiMsgDiv.appendChild(tag);
       const status = document.createElement('div');
       status.className = 'chat-tool-status';
@@ -1176,7 +1193,7 @@ async function chatExecuteTool(toolName, args, msgDiv) {
     const sym = chatNormSymbol(args.symbol, args.market);
     const tf = args.timeframe || args.interval || '1d';
     const lim = args.limit || 100;
-    const r = await fdata(sym, tf, lim);
+    let r; try { r = await fdata(sym, tf, lim); } catch(e) { throw new Error('Failed to load ' + sym + ' data: ' + e.message); }
     const dt = r.map(k => fd(k[0], tf));
     const oh = r.map(k => [+k[1], +k[4], +k[3], +k[2]]);
     const v = r.map(k => +k[5]);
@@ -1212,7 +1229,7 @@ async function chatExecuteTool(toolName, args, msgDiv) {
     const tf = args.timeframe || '1d';
     const lim = args.limit || 180;
     const normSyms = symbols.map((s, i) => chatNormSymbol(s, markets[i] || args.market || 'crypto'));
-    const allData = await Promise.all(normSyms.map(s => fdata(s, tf, lim)));
+    let allData; try { allData = await Promise.all(normSyms.map(s => fdata(s, tf, lim))); } catch(e) { throw new Error('Failed to load overlay data: ' + e.message); }
     function norm(r) { const cl = r.map(k => +k[4]), f = cl[0]; return { dates: r.map(k => fd(k[0], tf)), vals: cl.map(v => ((v - f) / f) * 100) }; }
     const normed = allData.map(r => norm(r));
     const dates = normed.reduce((a, b) => a.dates.length >= b.dates.length ? a : b).dates;
@@ -1240,7 +1257,7 @@ async function chatExecuteTool(toolName, args, msgDiv) {
     const sym = chatNormSymbol(args.symbol, args.market);
     const tf = args.timeframe || '1d';
     const sel = args.indicators || ['MA', 'RSI', 'MACD'];
-    const r = await fdata(sym, tf, 120);
+    let r; try { r = await fdata(sym, tf, 120); } catch(e) { throw new Error('Failed to load ' + sym + ' data: ' + e.message); }
     const dt = r.map(k => fd(k[0], tf));
     const cl = r.map(k => +k[4]);
     const oh = r.map(k => [+k[1], +k[4], +k[3], +k[2]]);
@@ -1305,7 +1322,7 @@ async function chatExecuteTool(toolName, args, msgDiv) {
     const tf = args.timeframe || '1d';
     const lim = args.limit || 120;
     const rows = args.rows || 24;
-    const r = await fdata(sym, tf, lim);
+    let r; try { r = await fdata(sym, tf, lim); } catch(e) { throw new Error('Failed to load ' + sym + ' data: ' + e.message); }
     const dt = r.map(k => fd(k[0], tf));
     const oh = r.map(k => [+k[1], +k[4], +k[3], +k[2]]);
     const v = r.map(k => +k[5]);
@@ -1370,7 +1387,7 @@ async function chatExecuteTool(toolName, args, msgDiv) {
     const market = args.market || 'crypto';
     const lim = args.limit || 50;
     const minV = args.min_volume || 1000000;
-    const res = await (await fetch('https://api.binance.com/api/v3/ticker/24hr')).json();
+    let res; try { res = await (await fetch('https://api.binance.com/api/v3/ticker/24hr')).json(); } catch(e) { throw new Error('Failed to fetch Binance data: ' + e.message); }
     let items = res.filter(t => {
       if (!t.symbol.endsWith('USDT')) return false;
       const b = cBase(t.symbol); if (EXCL.has(b)) return false;
@@ -1405,7 +1422,7 @@ async function chatExecuteTool(toolName, args, msgDiv) {
     const sym = chatNormSymbol(args.symbol, args.market);
     const tf = args.timeframe || '1d';
     const lim = args.limit || 150;
-    const r = await fdata(sym, tf, lim);
+    let r; try { r = await fdata(sym, tf, lim); } catch(e) { throw new Error('Failed to load ' + sym + ' data: ' + e.message); }
     const dt = r.map(k => fd(k[0], tf));
     const oh = r.map(k => [+k[1], +k[4], +k[3], +k[2]]);
     const v = r.map(k => +k[5]);
