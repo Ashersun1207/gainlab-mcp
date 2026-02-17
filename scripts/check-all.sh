@@ -134,8 +134,9 @@ else
 fi
 
 # ── 6. Git 状态 ──
-section "6/7 Git 状态"
-for repo in "$MCP" "$RESEARCH"; do
+section "6/8 Git 状态"
+APP="/Users/mac/Desktop/卷卷/gainlab-app"
+for repo in "$MCP" "$RESEARCH" "$APP"; do
   name=$(basename "$repo")
   cd "$repo" 2>/dev/null || continue
   DIRTY=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
@@ -152,8 +153,29 @@ for repo in "$MCP" "$RESEARCH"; do
   fi
 done
 
-# ── 7. 同步状态 ──
-section "7/7 文档同步"
+# ── 7. gainlab-app 基础检查 ──
+section "7/8 gainlab-app 检查"
+if [ -d "$APP" ]; then
+  # 检查必要文件
+  for f in .gitignore README.md ARCHITECTURE.md RULES.md; do
+    if [ -f "$APP/$f" ]; then
+      green "gainlab-app/$f 存在"
+    else
+      red "gainlab-app/$f 缺失"
+    fi
+  done
+  # 检查 GH Actions
+  if [ -f "$APP/.github/workflows/deploy.yml" ]; then
+    green "gainlab-app GH Actions deploy.yml 存在"
+  else
+    yellow "gainlab-app GH Actions deploy.yml 缺失（T8 任务）"
+  fi
+else
+  yellow "gainlab-app 目录不存在: $APP"
+fi
+
+# ── 8. 同步状态 ──
+section "8/8 文档同步"
 SYNC_DIR="$WORKSPACE/memory/gainlab-sync"
 SYNC_PAIRS="README.md:gainlab-research-index.md status.md:gainlab-status.md decisions.md:gainlab-decisions-sync.md"
 SYNC_FAIL=0
@@ -169,16 +191,30 @@ for pair in $SYNC_PAIRS; do
 done
 [ "$SYNC_FAIL" -eq 0 ] && green "research → workspace 同步正常"
 
-# Check ARCHITECTURE.md sync
+# Check ARCHITECTURE.md sync (mcp)
 if [ -f "$SYNC_DIR/gainlab-architecture.md" ]; then
   if ! diff -q "$MCP/ARCHITECTURE.md" "$SYNC_DIR/gainlab-architecture.md" > /dev/null 2>&1; then
-    yellow "ARCHITECTURE.md → workspace 不同步"
+    yellow "MCP ARCHITECTURE.md → workspace 不同步"
   else
-    green "ARCHITECTURE.md 已同步到 workspace"
+    green "MCP ARCHITECTURE.md 已同步到 workspace"
   fi
 else
-  yellow "ARCHITECTURE.md 未同步到 workspace（memory_search 搜不到）"
+  yellow "MCP ARCHITECTURE.md 未同步到 workspace（memory_search 搜不到）"
 fi
+
+# Check gainlab-app sync
+for pair in "ARCHITECTURE.md:gainlab-app-architecture.md" "RULES.md:gainlab-app-rules.md"; do
+  src="${pair%%:*}"; dst="${pair#*:}"
+  if [ -f "$SYNC_DIR/$dst" ]; then
+    if ! diff -q "$APP/$src" "$SYNC_DIR/$dst" > /dev/null 2>&1; then
+      yellow "gainlab-app/$src → workspace 不同步"
+    else
+      green "gainlab-app/$src 已同步到 workspace"
+    fi
+  else
+    yellow "gainlab-app/$src 未同步到 workspace"
+  fi
+done
 
 # ── 汇总 ──
 echo ""
