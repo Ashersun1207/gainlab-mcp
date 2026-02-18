@@ -174,6 +174,29 @@ async function handleQuote(url, env, cors) {
       );
       if (!res.ok) throw new Error(`EODHD ${res.status}`);
       const q = await res.json();
+      // Fallback: when real-time returns "NA" (market closed / weekends), use latest EOD data
+      if (q.close === 'NA' || q.close === undefined) {
+        const eodRes = await fetch(
+          `https://eodhd.com/api/eod/${symbol}?api_token=${env.EODHD_API_KEY}&fmt=json&period=d&order=d&limit=2`,
+        );
+        if (eodRes.ok) {
+          const eodData = await eodRes.json();
+          if (eodData.length >= 1) {
+            const latest = eodData[0];
+            const prev = eodData.length >= 2 ? eodData[1] : null;
+            const change = prev ? latest.close - prev.close : 0;
+            const changePct = prev && prev.close ? (change / prev.close) * 100 : 0;
+            return jsonResponse({
+              symbol: symbol,
+              price: latest.close || latest.adjusted_close || 0,
+              change: parseFloat(change.toFixed(4)),
+              changePercent: parseFloat(changePct.toFixed(2)),
+              volume: latest.volume || 0,
+              source: 'eod_fallback',
+            }, 200, cors);
+          }
+        }
+      }
       return jsonResponse({
         symbol: symbol,
         price: q.close || 0,
