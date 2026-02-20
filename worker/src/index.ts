@@ -334,118 +334,273 @@ function normalizeMarket(m) {
   return { us_stock: 'us', a_share: 'cn', commodity: 'metal' }[m] || m || 'crypto';
 }
 
-// ─── tool name → widgetState 映射 ──────────────────────────
-function toWidgetState(toolName, toolArgs) {
-  const map = {
-    gainlab_kline:         (a) => ({ type: 'kline', symbol: a.symbol, market: normalizeMarket(a.market), period: a.timeframe || '1D' }),
-    gainlab_indicators:    (a) => ({ type: 'kline', symbol: a.symbol, market: normalizeMarket(a.market), period: a.timeframe || '1D', indicators: a.indicators }),
-    gainlab_wrb_scoring:   (a) => ({ type: 'kline', symbol: a.symbol, market: normalizeMarket(a.market), period: a.timeframe || '1D', showWRB: true }),
-    gainlab_heatmap:       (a) => ({ type: 'heatmap', market: normalizeMarket(a.market) }),
-    gainlab_overlay:       (a) => ({ type: 'overlay', symbols: a.symbols || [], markets: (a.markets || []).map(normalizeMarket), period: a.timeframe || '1D' }),
-    gainlab_fundamentals:  (a) => ({ type: 'fundamentals', symbol: a.symbol, market: 'us' }),
-    gainlab_volume_profile:(a) => ({ type: 'volume_profile', symbol: a.symbol, market: normalizeMarket(a.market), period: a.timeframe || '1D' }),
-  };
-  const fn = map[toolName];
-  return fn ? fn(toolArgs || {}) : null;
+// ─── 公共数据获取（多个 tool 共享，独立于 TOOL_REGISTRY）──
+
+async function fetchKlineData(symbol, market, timeframe, env) {
+  const interval = timeframe || '1d';
+  if (market === 'crypto') {
+    const bybitInterval = toBybitInterval(interval);
+    const res = await fetch(`https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=${bybitInterval}&limit=200`);
+    if (!res.ok) throw new Error(`Bybit ${res.status}`);
+    const json = await res.json();
+    if (json.retCode !== 0) throw new Error(`Bybit: ${json.retMsg}`);
+    return (json.result.list || []).reverse().map((item) => ({
+      timestamp: parseInt(item[0]), open: parseFloat(item[1]), high: parseFloat(item[2]),
+      low: parseFloat(item[3]), close: parseFloat(item[4]), volume: parseFloat(item[5]),
+    }));
+  } else if (market === 'us') {
+    const res = await fetch(`https://financialmodelingprep.com/stable/historical-price-eod/full?symbol=${symbol}&apikey=${env.FMP_API_KEY}`);
+    if (!res.ok) throw new Error(`FMP ${res.status}`);
+    const json = await res.json();
+    return json.slice(0, 200).reverse().map((d) => ({
+      timestamp: new Date(d.date).getTime(), open: d.open, high: d.high,
+      low: d.low, close: d.close, volume: d.volume,
+    }));
+  } else if (market === 'cn' || market === 'metal') {
+    const res = await fetch(`https://eodhd.com/api/eod/${symbol}?api_token=${env.EODHD_API_KEY}&fmt=json&period=d&order=a`);
+    if (!res.ok) throw new Error(`EODHD ${res.status}`);
+    const json = await res.json();
+    return json.slice(-200).map((d) => ({
+      timestamp: new Date(d.date).getTime(), open: d.open, high: d.high,
+      low: d.low, close: d.close, volume: d.volume,
+    }));
+  }
+  throw new Error(`Unsupported market: ${market}`);
 }
 
-// ─── 内部 tool 执行（复用 GET handler 逻辑，不走 HTTP）────
+async function fetchHeatmapData(market) {
+  if (market === 'crypto') {
+    const res = await fetch('https://api.bybit.com/v5/market/tickers?category=spot');
+    if (!res.ok) throw new Error(`Bybit ${res.status}`);
+    const json = await res.json();
+    if (json.retCode !== 0) throw new Error(`Bybit: ${json.retMsg}`);
+    const list = json.result.list || [];
+    return list.filter((t) => t.symbol.endsWith('USDT'))
+      .sort((x, y) => parseFloat(y.turnover24h) - parseFloat(x.turnover24h))
+      .slice(0, 50)
+      .map((t) => ({
+        name: t.symbol.replace('USDT', ''), symbol: t.symbol,
+        value: parseFloat(t.turnover24h), price: parseFloat(t.lastPrice),
+        change: parseFloat(t.price24hPcnt) * 100,
+      }));
+  }
+  return [];
+}
+
+async function fetchFundamentals(symbol, env) {
+  const res = await fetch(`https://financialmodelingprep.com/stable/profile?symbol=${symbol}&apikey=${env.FMP_API_KEY}`);
+  if (!res.ok) throw new Error(`FMP ${res.status}`);
+  const json = await res.json();
+  return json[0] || {};
+}
+
+// ─── TOOL_REGISTRY — 单一真相源 ─────────────────────────────
+// 每个 tool 的定义、路由、执行、widgetState 映射全在一处。
+// 加新 tool 只改这里 + 对应的 fetch 函数（如需新数据源）。
+//
+// ⚠️ whenToUse 是手写路由规则，加新 tool 时必须同步更新
+//    buildSystemPrompt() 末尾的优先级列表。
+
+const TOOL_REGISTRY = {
+  gainlab_kline: {
+    description: 'Generate a K-line (candlestick) chart for any supported asset',
+    whenToUse: 'User wants to see a price chart, candlestick, or OHLCV data. Examples: "看BTC", "show AAPL chart", "ETH走势"',
+    parameters: {
+      type: 'object',
+      properties: {
+        symbol: { type: 'string', description: 'Asset symbol, e.g. BTCUSDT, AAPL, 600519.SHG' },
+        market: { type: 'string', enum: ['crypto', 'us_stock', 'a_share', 'commodity'], description: 'Market type' },
+        timeframe: { type: 'string', enum: ['1h', '4h', '1d', '1w'], description: 'Timeframe, default 1d' },
+      },
+      required: ['symbol', 'market'],
+    },
+    toWidgetState: (a) => ({ type: 'kline', symbol: a.symbol, market: normalizeMarket(a.market), period: a.timeframe || '1D' }),
+    execute: async (a, env) => {
+      const data = await fetchKlineData(a.symbol, normalizeMarket(a.market), a.timeframe, env);
+      return { data };
+    },
+  },
+
+  gainlab_overlay: {
+    description: 'Compare multiple assets on a normalized chart to show relative performance',
+    whenToUse: 'User wants to COMPARE 2+ assets. Keywords: "对比", "compare", "vs", "relative". NOT for single asset.',
+    parameters: {
+      type: 'object',
+      properties: {
+        symbols: { type: 'array', items: { type: 'string' }, description: 'List of symbols to compare' },
+        markets: { type: 'array', items: { type: 'string', enum: ['crypto', 'us_stock', 'a_share', 'commodity'] }, description: 'Market for each symbol' },
+        timeframe: { type: 'string', enum: ['1h', '4h', '1d', '1w'], description: 'Timeframe, default 1d' },
+      },
+      required: ['symbols', 'markets'],
+    },
+    toWidgetState: (a) => ({ type: 'overlay', symbols: a.symbols || [], markets: (a.markets || []).map(normalizeMarket), period: a.timeframe || '1D' }),
+    execute: async (a, env) => {
+      const symbols = a.symbols || [];
+      const markets = (a.markets || []).map(normalizeMarket);
+      const results = await Promise.all(
+        symbols.map((sym, i) => fetchKlineData(sym, markets[i] || 'crypto', a.timeframe, env).catch(() => []))
+      );
+      return { series: symbols.map((sym, i) => ({ symbol: sym, market: markets[i] || 'crypto', data: results[i] || [] })) };
+    },
+  },
+
+  gainlab_indicators: {
+    description: 'Show K-line chart WITH specific technical indicators (RSI, MACD, BOLL, KDJ, EMA, MA, VOL)',
+    whenToUse: 'User explicitly asks for technical indicators by name. Keywords: "RSI", "MACD", "布林带", "KDJ", "均线". Do NOT use for simple chart requests.',
+    parameters: {
+      type: 'object',
+      properties: {
+        symbol: { type: 'string', description: 'Asset symbol' },
+        market: { type: 'string', enum: ['crypto', 'us_stock', 'a_share', 'commodity'], description: 'Market type' },
+        indicators: { type: 'array', items: { type: 'string', enum: ['RSI', 'MACD', 'BOLL', 'KDJ', 'EMA', 'MA', 'VOL'] }, description: 'Indicators to show' },
+        timeframe: { type: 'string', enum: ['1h', '4h', '1d', '1w'], description: 'Timeframe, default 1d' },
+      },
+      required: ['symbol', 'market', 'indicators'],
+    },
+    toWidgetState: (a) => ({ type: 'kline', symbol: a.symbol, market: normalizeMarket(a.market), period: a.timeframe || '1D', indicators: a.indicators }),
+    execute: async (a, env) => {
+      const data = await fetchKlineData(a.symbol, normalizeMarket(a.market), a.timeframe, env);
+      return { data };
+    },
+  },
+
+  gainlab_fundamentals: {
+    description: 'Show company fundamentals: income, key metrics, DCF valuation, analyst estimates',
+    whenToUse: 'User asks about company financials, earnings, PE ratio, revenue, valuation. Keywords: "基本面", "财报", "PE", "revenue", "fundamentals"',
+    parameters: {
+      type: 'object',
+      properties: {
+        symbol: { type: 'string', description: 'Stock symbol: AAPL, MSFT, etc.' },
+        mode: { type: 'string', enum: ['overview', 'income', 'valuation'], description: 'Display mode, default overview' },
+      },
+      required: ['symbol'],
+    },
+    toWidgetState: (a) => ({ type: 'fundamentals', symbol: a.symbol, market: 'us' }),
+    execute: async (a, env) => {
+      const market = normalizeMarket(a.market);
+      if (market === 'us' || !a.market) {
+        return await fetchFundamentals(a.symbol, env);
+      }
+      return { error: 'Fundamentals not available for this market' };
+    },
+  },
+
+  gainlab_volume_profile: {
+    description: 'Volume profile — horizontal volume distribution at price levels, identifying support/resistance',
+    whenToUse: 'User asks about volume profile, price levels with most trading, support/resistance from volume. Keywords: "量价", "volume profile", "成交量分布"',
+    parameters: {
+      type: 'object',
+      properties: {
+        symbol: { type: 'string', description: 'Asset symbol' },
+        market: { type: 'string', enum: ['crypto', 'us_stock', 'a_share', 'commodity'], description: 'Market type' },
+        timeframe: { type: 'string', enum: ['1h', '4h', '1d', '1w'], description: 'Timeframe, default 1d' },
+      },
+      required: ['symbol', 'market'],
+    },
+    toWidgetState: (a) => ({ type: 'volume_profile', symbol: a.symbol, market: normalizeMarket(a.market), period: a.timeframe || '1D' }),
+    execute: async (a, env) => {
+      const data = await fetchKlineData(a.symbol, normalizeMarket(a.market), a.timeframe, env);
+      return { data };
+    },
+  },
+
+  gainlab_heatmap: {
+    description: 'Market sector heatmap (treemap) showing gains/losses by market cap',
+    whenToUse: 'User asks about market overview, sector heat, which sectors are up/down. Keywords: "热力图", "heatmap", "市场热度", "板块"',
+    parameters: {
+      type: 'object',
+      properties: {
+        market: { type: 'string', enum: ['crypto', 'us_stock'], description: 'Market type' },
+      },
+      required: ['market'],
+    },
+    toWidgetState: (a) => ({ type: 'heatmap', market: normalizeMarket(a.market) }),
+    execute: async (a) => {
+      const data = await fetchHeatmapData(normalizeMarket(a.market));
+      return { data };
+    },
+  },
+
+  gainlab_wrb_scoring: {
+    description: 'Analyze Wide Range Bar (WRB) patterns and Hidden Gaps for scoring',
+    whenToUse: 'User explicitly asks for WRB analysis, wide range bars, hidden gaps. This is an advanced pattern — only use when explicitly requested.',
+    parameters: {
+      type: 'object',
+      properties: {
+        symbol: { type: 'string', description: 'Asset symbol' },
+        market: { type: 'string', enum: ['crypto', 'us_stock', 'a_share', 'commodity'], description: 'Market type' },
+        timeframe: { type: 'string', enum: ['1h', '4h', '1d', '1w'], description: 'Timeframe, default 1d' },
+      },
+      required: ['symbol', 'market'],
+    },
+    toWidgetState: (a) => ({ type: 'kline', symbol: a.symbol, market: normalizeMarket(a.market), period: a.timeframe || '1D', showWRB: true }),
+    execute: async (a, env) => {
+      const data = await fetchKlineData(a.symbol, normalizeMarket(a.market), a.timeframe, env);
+      return { data };
+    },
+  },
+};
+
+// ─── 从 TOOL_REGISTRY 自动生成 ──────────────────────────────
+
+function buildSystemPrompt(registry) {
+  const toolDescriptions = Object.entries(registry).map(([name, tool]) => {
+    return `- ${name}: ${tool.description}\n  WHEN TO USE: ${tool.whenToUse}`;
+  }).join('\n');
+
+  // ⚠️ 优先级列表手写。加新 tool 时必须同步更新此处。
+  return `You are GainLab Demo Agent — a financial chart assistant powered by GainLab MCP tools.
+
+Your capabilities:
+${toolDescriptions}
+
+Rules:
+- ONLY handle financial chart and data analysis requests
+- For non-financial requests, politely decline and suggest a financial query
+- Use EXACTLY ONE tool per user request — do not call multiple tools for a single query
+- Choose the most specific tool that matches the user's intent
+- Explain briefly what the chart shows after generating it
+- Supported markets: Crypto (real-time), US Stock, A-Share, Commodities (sample data)
+- Respond in the same language as the user's message
+
+Tool selection priority (most specific wins):
+1. If user mentions specific indicators (RSI, MACD, etc.) → gainlab_indicators
+2. If user wants to COMPARE multiple assets → gainlab_overlay
+3. If user asks about fundamentals/earnings/PE → gainlab_fundamentals
+4. If user asks about volume profile/price levels → gainlab_volume_profile
+5. If user asks about market heat/sectors → gainlab_heatmap
+6. If user asks about WRB/hidden gaps → gainlab_wrb_scoring
+7. For any other chart/price request → gainlab_kline (default)`;
+}
+
+function buildToolDefs(registry) {
+  return Object.entries(registry).map(([name, tool]) => ({
+    type: 'function',
+    function: {
+      name,
+      description: tool.description,
+      parameters: tool.parameters,
+    },
+  }));
+}
+
+// ─── 由 TOOL_REGISTRY 驱动 ─────────────────────────────────
+const SYSTEM_PROMPT = buildSystemPrompt(TOOL_REGISTRY);
+const TOOLS = buildToolDefs(TOOL_REGISTRY);
+
 async function executeTool(toolName, toolArgs, env) {
-  const a = toolArgs || {};
-  const market = normalizeMarket(a.market);
-
+  const entry = TOOL_REGISTRY[toolName];
+  if (!entry?.execute) return { error: `Unknown tool: ${toolName}` };
   try {
-    switch (toolName) {
-      case 'gainlab_kline':
-      case 'gainlab_indicators':
-      case 'gainlab_wrb_scoring': {
-        // 复用 kline 获取逻辑
-        const interval = a.timeframe || '1d';
-        let data;
-        if (market === 'crypto') {
-          const bybitInterval = toBybitInterval(interval);
-          const res = await fetch(`https://api.bybit.com/v5/market/kline?category=spot&symbol=${a.symbol}&interval=${bybitInterval}&limit=200`);
-          if (!res.ok) throw new Error(`Bybit ${res.status}`);
-          const json = await res.json();
-          if (json.retCode !== 0) throw new Error(`Bybit: ${json.retMsg}`);
-          data = (json.result.list || []).reverse().map((item) => ({
-            timestamp: parseInt(item[0]), open: parseFloat(item[1]), high: parseFloat(item[2]),
-            low: parseFloat(item[3]), close: parseFloat(item[4]), volume: parseFloat(item[5]),
-          }));
-        } else if (market === 'us') {
-          const res = await fetch(`https://financialmodelingprep.com/stable/historical-price-eod/full?symbol=${a.symbol}&apikey=${env.FMP_API_KEY}`);
-          if (!res.ok) throw new Error(`FMP ${res.status}`);
-          const json = await res.json();
-          data = json.slice(0, 200).reverse().map((d) => ({
-            timestamp: new Date(d.date).getTime(), open: d.open, high: d.high,
-            low: d.low, close: d.close, volume: d.volume,
-          }));
-        } else if (market === 'cn' || market === 'metal') {
-          const res = await fetch(`https://eodhd.com/api/eod/${a.symbol}?api_token=${env.EODHD_API_KEY}&fmt=json&period=d&order=a`);
-          if (!res.ok) throw new Error(`EODHD ${res.status}`);
-          const json = await res.json();
-          data = json.slice(-200).map((d) => ({
-            timestamp: new Date(d.date).getTime(), open: d.open, high: d.high,
-            low: d.low, close: d.close, volume: d.volume,
-          }));
-        } else {
-          return { error: `Unsupported market: ${market}` };
-        }
-        return { data };
-      }
-
-      case 'gainlab_heatmap': {
-        if (market === 'crypto') {
-          const res = await fetch('https://api.bybit.com/v5/market/tickers?category=spot');
-          if (!res.ok) throw new Error(`Bybit ${res.status}`);
-          const json = await res.json();
-          if (json.retCode !== 0) throw new Error(`Bybit: ${json.retMsg}`);
-          const list = json.result.list || [];
-          const top = list.filter((t) => t.symbol.endsWith('USDT'))
-            .sort((x, y) => parseFloat(y.turnover24h) - parseFloat(x.turnover24h))
-            .slice(0, 50)
-            .map((t) => ({
-              name: t.symbol.replace('USDT', ''), symbol: t.symbol,
-              value: parseFloat(t.turnover24h), price: parseFloat(t.lastPrice),
-              change: parseFloat(t.price24hPcnt) * 100,
-            }));
-          return { data: top };
-        }
-        return { data: [] };
-      }
-
-      case 'gainlab_overlay': {
-        // 并行获取多个 symbol 的 kline
-        const symbols = a.symbols || [];
-        const markets = (a.markets || []).map(normalizeMarket);
-        const interval = a.timeframe || '1d';
-        const results = await Promise.all(
-          symbols.map((sym, i) => executeTool('gainlab_kline', { symbol: sym, market: markets[i] || 'crypto', timeframe: interval }, env))
-        );
-        return { series: symbols.map((sym, i) => ({ symbol: sym, market: markets[i] || 'crypto', data: results[i]?.data || [] })) };
-      }
-
-      case 'gainlab_fundamentals': {
-        if (market === 'us' || !a.market) {
-          const res = await fetch(`https://financialmodelingprep.com/stable/profile?symbol=${a.symbol}&apikey=${env.FMP_API_KEY}`);
-          if (!res.ok) throw new Error(`FMP ${res.status}`);
-          const json = await res.json();
-          return json[0] || {};
-        }
-        return { error: 'Fundamentals not available for this market' };
-      }
-
-      case 'gainlab_volume_profile': {
-        // VP 需要 kline 数据，返回原始 kline 让前端计算
-        return await executeTool('gainlab_kline', { symbol: a.symbol, market: a.market, timeframe: a.timeframe }, env);
-      }
-
-      default:
-        return { error: `Unknown tool: ${toolName}` };
-    }
+    return await entry.execute(toolArgs || {}, env);
   } catch (e) {
     return { error: e.message };
   }
+}
+
+function toWidgetState(toolName, toolArgs) {
+  const entry = TOOL_REGISTRY[toolName];
+  return entry?.toWidgetState ? entry.toWidgetState(toolArgs || {}) : null;
 }
 
 // ─── <think> 标签过滤 ──────────────────────────────────────
@@ -638,139 +793,7 @@ function createSSEMiddleware(upstreamBody, env) {
   return stream;
 }
 
-// System prompt
-const SYSTEM_PROMPT = `You are GainLab Demo Agent — a financial chart assistant powered by GainLab MCP tools.
-
-Your capabilities:
-- Generate K-line/candlestick charts (gainlab_kline)
-- Compare multiple assets (gainlab_overlay)
-- Show technical indicators like RSI, MACD, Bollinger Bands (gainlab_indicators)
-- Display company fundamentals (gainlab_fundamentals)
-- Analyze volume profiles (gainlab_volume_profile)
-- Show sector heatmaps (gainlab_heatmap)
-- Detect WRB/Hidden Gap patterns (gainlab_wrb_scoring)
-
-Rules:
-- ONLY handle financial chart and data analysis requests
-- For non-financial requests, politely decline and suggest a financial query
-- Always use a tool when the user asks for charts or analysis
-- Explain briefly what the chart shows after generating it
-- Supported markets: Crypto (real-time), US Stock, A-Share, Commodities (sample data)
-- Respond in the same language as the user's message`;
-
-// Tool definitions for MiniMax
-const TOOLS = [
-  {
-    type: 'function',
-    function: {
-      name: 'gainlab_kline',
-      description: 'Generate a K-line (candlestick) chart with volume for any supported asset. Shows OHLCV data with customizable timeframe.',
-      parameters: {
-        type: 'object',
-        properties: {
-          symbol: { type: 'string', description: 'Asset symbol, e.g. BTCUSDT, AAPL, 600519, XAUUSD' },
-          market: { type: 'string', enum: ['crypto', 'us_stock', 'a_share', 'commodity'], description: 'Market type' },
-          timeframe: { type: 'string', enum: ['1h', '4h', '1d', '1w'], description: 'Timeframe, default 1d' },
-        },
-        required: ['symbol', 'market'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'gainlab_overlay',
-      description: 'Compare multiple assets on a single normalized chart. Great for showing relative performance.',
-      parameters: {
-        type: 'object',
-        properties: {
-          symbols: { type: 'array', items: { type: 'string' }, description: 'List of symbols to compare, e.g. ["BTCUSDT", "ETHUSDT"]' },
-          markets: { type: 'array', items: { type: 'string', enum: ['crypto', 'us_stock', 'a_share', 'commodity'] }, description: 'Market for each symbol' },
-          timeframe: { type: 'string', enum: ['1h', '4h', '1d', '1w'], description: 'Timeframe, default 1d' },
-        },
-        required: ['symbols', 'markets'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'gainlab_indicators',
-      description: 'Show K-line chart with technical indicators like RSI, MACD, Bollinger Bands, KDJ, EMA, MA, etc.',
-      parameters: {
-        type: 'object',
-        properties: {
-          symbol: { type: 'string', description: 'Asset symbol' },
-          market: { type: 'string', enum: ['crypto', 'us_stock', 'a_share', 'commodity'], description: 'Market type' },
-          indicators: { type: 'array', items: { type: 'string', enum: ['RSI', 'MACD', 'BOLL', 'KDJ', 'EMA', 'MA', 'VOL'] }, description: 'Indicators to show' },
-          timeframe: { type: 'string', enum: ['1h', '4h', '1d', '1w'], description: 'Timeframe, default 1d' },
-        },
-        required: ['symbol', 'market', 'indicators'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'gainlab_fundamentals',
-      description: 'Show company fundamentals: income statement, key metrics, DCF valuation, analyst estimates. Available for AAPL, MSFT, 600519 (Moutai).',
-      parameters: {
-        type: 'object',
-        properties: {
-          symbol: { type: 'string', description: 'Stock symbol: AAPL, MSFT, or 600519' },
-          mode: { type: 'string', enum: ['overview', 'income', 'valuation'], description: 'Display mode, default overview' },
-        },
-        required: ['symbol'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'gainlab_volume_profile',
-      description: 'Show volume profile analysis — horizontal volume distribution at different price levels, identifying support/resistance zones.',
-      parameters: {
-        type: 'object',
-        properties: {
-          symbol: { type: 'string', description: 'Asset symbol' },
-          market: { type: 'string', enum: ['crypto', 'us_stock', 'a_share', 'commodity'], description: 'Market type' },
-          timeframe: { type: 'string', enum: ['1h', '4h', '1d', '1w'], description: 'Timeframe, default 1d' },
-        },
-        required: ['symbol', 'market'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'gainlab_heatmap',
-      description: 'Show sector heatmap (treemap) for crypto or stock markets. Shows market cap weighted sector performance.',
-      parameters: {
-        type: 'object',
-        properties: {
-          market: { type: 'string', enum: ['crypto', 'us_stock'], description: 'Market type' },
-        },
-        required: ['market'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'gainlab_wrb_scoring',
-      description: 'Analyze Wide Range Bar (WRB) patterns and Hidden Gaps for a given asset. Shows bullish/bearish scoring.',
-      parameters: {
-        type: 'object',
-        properties: {
-          symbol: { type: 'string', description: 'Asset symbol' },
-          market: { type: 'string', enum: ['crypto', 'us_stock', 'a_share', 'commodity'], description: 'Market type' },
-          timeframe: { type: 'string', enum: ['1h', '4h', '1d', '1w'], description: 'Timeframe, default 1d' },
-        },
-        required: ['symbol', 'market'],
-      },
-    },
-  },
-];
+// SYSTEM_PROMPT and TOOLS are now auto-generated from TOOL_REGISTRY above (line ~588)
 
 export default {
   async fetch(request, env) {
