@@ -13,11 +13,11 @@ _GainLab API Proxy — Cloudflare Worker_
 
 | 方法 | 路径 | 功能 | 数据源路由 |
 |---|---|---|---|
-| GET | `/api/kline` | K线数据 | crypto→Bybit, us→FMP, cn/metal→EODHD |
-| GET | `/api/quote` | 实时报价 | crypto→Bybit, us→FMP, cn/metal→EODHD |
-| GET | `/api/search` | 股票/加密搜索 | crypto→Bybit instruments, us→FMP, cn→EODHD |
-| GET | `/api/fundamentals` | 基本面数据 | us→FMP |
-| GET | `/api/screener` | 热力图数据 | crypto→Bybit, us→FMP |
+| GET | `/api/kline` | K线数据 | crypto→Bybit, us/cn/metal→EODHD |
+| GET | `/api/quote` | 实时报价 | crypto→Bybit, us/cn/metal→EODHD |
+| GET | `/api/search` | 股票/加密搜索 | crypto→Bybit instruments, us/cn/metal→EODHD |
+| GET | `/api/fundamentals` | 基本面数据 | us/cn→EODHD |
+| GET | `/api/screener` | 热力图数据 | crypto→Bybit |
 | POST | `/api/chat` | AI 对话（SSE） | MiniMax M2.5 → SSE 中间件 |
 
 ## 核心架构
@@ -59,7 +59,7 @@ _GainLab API Proxy — Cloudflare Worker_
 | market | 上游 | 备注 |
 |---|---|---|
 | `crypto` | Bybit V5 API | Binance 封锁 CF Worker IP |
-| `us` | FMP `/stable/` | $8/mo Starter plan |
+| `us` | EODHD | `AAPL.US` 后缀（FMP 已移除，429 限流严重） |
 | `cn` | EODHD | `.SHG`/`.SHE` 后缀 |
 | `metal` | EODHD | `XAU.COMM` / `XAG.COMM` |
 

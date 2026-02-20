@@ -3,8 +3,7 @@
 // + REST GET endpoints for kline, quote, search, fundamentals, screener
 //
 // Crypto: Bybit API (Binance blocks CF Worker IPs)
-// US: FMP /stable/ endpoints
-// CN/Metal: EODHD
+// US/CN/Metal: EODHD (FMP removed — 429 rate limit issues, EODHD 100k req/day)
 
 import type { KlineBar, WidgetState, WorkerMarketType } from './types';
 
@@ -12,8 +11,8 @@ import type { KlineBar, WidgetState, WorkerMarketType } from './types';
 interface Env {
   MINIMAX_API_KEY: string;
   ALLOWED_ORIGIN: string;
-  FMP_API_KEY: string;
   EODHD_API_KEY: string;
+  // FMP_API_KEY removed — all markets now use EODHD (more stable, 100k req/day vs FMP 429 issues)
 }
 
 // ─── ToolEntry ──────────────────────────────────────────────
@@ -93,16 +92,10 @@ async function fetchKlineData(symbol: string, market: string, timeframe: string 
       timestamp: parseInt(item[0]), open: parseFloat(item[1]), high: parseFloat(item[2]),
       low: parseFloat(item[3]), close: parseFloat(item[4]), volume: parseFloat(item[5]),
     }));
-  } else if (market === 'us') {
-    const res = await fetch(`https://financialmodelingprep.com/stable/historical-price-eod/full?symbol=${symbol}&apikey=${env.FMP_API_KEY}`);
-    if (!res.ok) throw new Error(`FMP ${res.status}`);
-    const json = await res.json() as Array<{ date: string; open: number; high: number; low: number; close: number; volume: number }>;
-    return json.slice(0, 200).reverse().map((d) => ({
-      timestamp: new Date(d.date).getTime(), open: d.open, high: d.high,
-      low: d.low, close: d.close, volume: d.volume,
-    }));
-  } else if (market === 'cn' || market === 'metal') {
-    const res = await fetch(`https://eodhd.com/api/eod/${symbol}?api_token=${env.EODHD_API_KEY}&fmt=json&period=d&order=a`);
+  } else if (market === 'us' || market === 'cn' || market === 'metal') {
+    // All non-crypto markets use EODHD: us → AAPL.US, cn → 600519.SHG, metal → XAU.COMM
+    const eodhSymbol = market === 'us' ? `${symbol}.US` : symbol;
+    const res = await fetch(`https://eodhd.com/api/eod/${eodhSymbol}?api_token=${env.EODHD_API_KEY}&fmt=json&period=d&order=a`);
     if (!res.ok) throw new Error(`EODHD ${res.status}`);
     const json = await res.json() as Array<{ date: string; open: number; high: number; low: number; close: number; volume: number }>;
     return json.slice(-200).map((d) => ({
@@ -141,10 +134,32 @@ async function fetchHeatmapData(market: string): Promise<HeatmapItem[]> {
 }
 
 async function fetchFundamentals(symbol: string, env: Env): Promise<Record<string, unknown>> {
-  const res = await fetch(`https://financialmodelingprep.com/stable/profile?symbol=${symbol}&apikey=${env.FMP_API_KEY}`);
-  if (!res.ok) throw new Error(`FMP ${res.status}`);
-  const json = await res.json() as Record<string, unknown>[];
-  return json[0] || {};
+  const res = await fetch(`https://eodhd.com/api/fundamentals/${symbol}.US?api_token=${env.EODHD_API_KEY}&fmt=json`);
+  if (!res.ok) throw new Error(`EODHD ${res.status}`);
+  const json = await res.json() as Record<string, unknown>;
+  // Flatten EODHD structure to match frontend expectations
+  const general = (json.General || {}) as Record<string, unknown>;
+  const highlights = (json.Highlights || {}) as Record<string, unknown>;
+  const valuation = (json.Valuation || {}) as Record<string, unknown>;
+  return {
+    symbol: general.Code,
+    companyName: general.Name,
+    sector: general.Sector,
+    industry: general.Industry,
+    description: general.Description,
+    country: general.CountryName,
+    mktCap: highlights.MarketCapitalization,
+    price: highlights.WallStreetTargetPrice,
+    pe: highlights.PERatio,
+    eps: highlights.EarningsShare,
+    revenue: highlights.Revenue,
+    grossProfit: highlights.GrossProfitMRQ,
+    ebitda: highlights.EBITDA,
+    trailingPE: valuation.TrailingPE,
+    forwardPE: valuation.ForwardPE,
+    priceToBook: valuation.PriceBookMRQ,
+    priceToSales: valuation.PriceSalesTTM,
+  };
 }
 
 // ─── GET /api/kline ─────────────────────────────────────────
@@ -195,34 +210,18 @@ async function handleQuote(url: URL, env: Env, cors: Record<string, string>): Pr
         volume: parseFloat(t.volume24h) || 0,
         quoteVolume: parseFloat(t.turnover24h) || 0,
       }, 200, cors);
-    } else if (market === 'us') {
-      // FMP /stable/quote — returns array, field: changePercentage
+    } else if (market === 'us' || market === 'cn' || market === 'metal') {
+      // EODHD /api/real-time/ — all non-crypto markets
+      const eodhSymbol = market === 'us' ? `${symbol}.US` : symbol;
       const res = await fetch(
-        `https://financialmodelingprep.com/stable/quote?symbol=${symbol}&apikey=${env.FMP_API_KEY}`,
-      );
-      if (!res.ok) throw new Error(`FMP ${res.status}`);
-      const json = await res.json() as Array<{ symbol: string; price: number; change: number; changePercentage: number; volume: number; marketCap: number; name: string }>;
-      const q = json[0] || {} as Record<string, unknown>;
-      return jsonResponse({
-        symbol: q.symbol,
-        price: q.price || 0,
-        change: q.change || 0,
-        changePercent: q.changePercentage || 0,
-        volume: q.volume || 0,
-        marketCap: q.marketCap || 0,
-        name: q.name || '',
-      }, 200, cors);
-    } else if (market === 'cn' || market === 'metal') {
-      // EODHD /api/real-time/ — fields: close, change, change_p
-      const res = await fetch(
-        `https://eodhd.com/api/real-time/${symbol}?api_token=${env.EODHD_API_KEY}&fmt=json`,
+        `https://eodhd.com/api/real-time/${eodhSymbol}?api_token=${env.EODHD_API_KEY}&fmt=json`,
       );
       if (!res.ok) throw new Error(`EODHD ${res.status}`);
       const q = await res.json() as { close: number | string | undefined; change: number; change_p: number; volume: number };
       // Fallback: when real-time returns "NA" (market closed / weekends), use latest EOD data
       if (q.close === 'NA' || q.close === undefined) {
         const eodRes = await fetch(
-          `https://eodhd.com/api/eod/${symbol}?api_token=${env.EODHD_API_KEY}&fmt=json&period=d&order=d&limit=2`,
+          `https://eodhd.com/api/eod/${eodhSymbol}?api_token=${env.EODHD_API_KEY}&fmt=json&period=d&order=d&limit=2`,
         );
         if (eodRes.ok) {
           const eodData = await eodRes.json() as Array<{ close: number; adjusted_close: number; volume: number }>;
@@ -266,31 +265,19 @@ async function handleSearch(url: URL, env: Env, cors: Record<string, string>): P
   }
 
   try {
-    if (market === 'us') {
-      // FMP /stable/search-name (实测: /stable/search 返回空)
-      const res = await fetch(
-        `https://financialmodelingprep.com/stable/search-name?query=${encodeURIComponent(query)}&limit=10&apikey=${env.FMP_API_KEY}`,
-      );
-      if (!res.ok) return jsonResponse({ results: [] }, 200, cors);
-      const json = await res.json() as Array<{ symbol: string; name: string; exchange: string; currency: string }>;
-      return jsonResponse({
-        results: json.map((r) => ({
-          symbol: r.symbol,
-          name: r.name,
-          exchange: r.exchange,
-          currency: r.currency,
-        })),
-      }, 200, cors);
-    } else if (market === 'cn' || market === 'metal') {
-      // EODHD /api/search/ — fields: Code, Exchange, Name
+    if (market === 'us' || market === 'cn' || market === 'metal') {
+      // EODHD /api/search/ — all non-crypto markets
       const res = await fetch(
         `https://eodhd.com/api/search/${encodeURIComponent(query)}?api_token=${env.EODHD_API_KEY}&fmt=json`,
       );
       if (!res.ok) return jsonResponse({ results: [] }, 200, cors);
       const json = await res.json() as Array<{ Code: string; Exchange: string; Name: string; Type: string }>;
+      // Filter by exchange: us→US, cn→SHG/SHE, metal→COMM
+      const exchangeFilter = market === 'us' ? ['US'] : market === 'cn' ? ['SHG', 'SHE'] : ['COMM'];
+      const filtered = json.filter((r) => exchangeFilter.includes(r.Exchange));
       return jsonResponse({
-        results: json.slice(0, 10).map((r) => ({
-          symbol: `${r.Code}.${r.Exchange}`,
+        results: (filtered.length > 0 ? filtered : json).slice(0, 10).map((r) => ({
+          symbol: market === 'us' ? r.Code : `${r.Code}.${r.Exchange}`,
           name: r.Name,
           exchange: r.Exchange,
           type: r.Type,
