@@ -6,12 +6,31 @@
 // US: FMP /stable/ endpoints
 // CN/Metal: EODHD
 
-// In-memory rate limiting (resets on worker restart, fine for demo)
-const ipCounts = new Map();
+import type { KlineBar, WidgetState, WorkerMarketType } from './types';
+
+// ─── Env ────────────────────────────────────────────────────
+interface Env {
+  MINIMAX_API_KEY: string;
+  ALLOWED_ORIGIN: string;
+  FMP_API_KEY: string;
+  EODHD_API_KEY: string;
+}
+
+// ─── ToolEntry ──────────────────────────────────────────────
+interface ToolEntry {
+  description: string;
+  whenToUse: string;
+  parameters: Record<string, unknown>;
+  toWidgetState: (args: Record<string, unknown>) => WidgetState | null;
+  execute: (args: Record<string, unknown>, env: Env) => Promise<unknown>;
+}
+
+// ─── In-memory rate limiting (resets on worker restart, fine for demo) ──
+const ipCounts = new Map<string, { count: number; resetAt: number }>();
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS = 10;
 
-function checkRateLimit(ip) {
+function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const record = ipCounts.get(ip);
   if (!record || now > record.resetAt) {
@@ -25,7 +44,7 @@ function checkRateLimit(ip) {
 
 // CORS headers
 const DEFAULT_ALLOWED_ORIGIN = 'https://ashersun1207.github.io';
-function corsHeaders(origin, allowedOrigin) {
+function corsHeaders(origin: string, allowedOrigin: string): Record<string, string> {
   const effectiveAllowed = allowedOrigin || DEFAULT_ALLOWED_ORIGIN;
   const allowed = origin === effectiveAllowed || origin.startsWith('http://localhost');
   return {
@@ -36,7 +55,7 @@ function corsHeaders(origin, allowedOrigin) {
 }
 
 // ─── JSON helper ────────────────────────────────────────────
-function jsonResponse(data, status, cors) {
+function jsonResponse(data: unknown, status: number, cors: Record<string, string>): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...cors, 'Content-Type': 'application/json' },
@@ -45,8 +64,8 @@ function jsonResponse(data, status, cors) {
 
 // ─── Bybit interval mapping ────────────────────────────────
 // Bybit uses: 1,3,5,15,30,60,120,240,360,720,D,W,M
-function toBybitInterval(interval) {
-  const map = {
+function toBybitInterval(interval: string): string {
+  const map: Record<string, string> = {
     '1m': '1', '3m': '3', '5m': '5', '15m': '15', '30m': '30',
     '1h': '60', '2h': '120', '4h': '240', '6h': '360', '12h': '720',
     '1d': 'D', '1w': 'W', '1M': 'M',
@@ -54,8 +73,82 @@ function toBybitInterval(interval) {
   return map[interval] || 'D';
 }
 
+// ─── market 归一化（MiniMax tool enum → 前端 MarketType）──
+function normalizeMarket(m: string): WorkerMarketType {
+  const map: Record<string, WorkerMarketType> = { us_stock: 'us', a_share: 'cn', commodity: 'metal' };
+  return map[m] || (m as WorkerMarketType) || 'crypto';
+}
+
+// ─── 公共数据获取（多个 tool 共享，独立于 TOOL_REGISTRY）──
+
+async function fetchKlineData(symbol: string, market: string, timeframe: string | undefined, env: Env): Promise<KlineBar[]> {
+  const interval = timeframe || '1d';
+  if (market === 'crypto') {
+    const bybitInterval = toBybitInterval(interval);
+    const res = await fetch(`https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=${bybitInterval}&limit=200`);
+    if (!res.ok) throw new Error(`Bybit ${res.status}`);
+    const json = await res.json() as { retCode: number; retMsg: string; result: { list: string[][] } };
+    if (json.retCode !== 0) throw new Error(`Bybit: ${json.retMsg}`);
+    return (json.result.list || []).reverse().map((item) => ({
+      timestamp: parseInt(item[0]), open: parseFloat(item[1]), high: parseFloat(item[2]),
+      low: parseFloat(item[3]), close: parseFloat(item[4]), volume: parseFloat(item[5]),
+    }));
+  } else if (market === 'us') {
+    const res = await fetch(`https://financialmodelingprep.com/stable/historical-price-eod/full?symbol=${symbol}&apikey=${env.FMP_API_KEY}`);
+    if (!res.ok) throw new Error(`FMP ${res.status}`);
+    const json = await res.json() as Array<{ date: string; open: number; high: number; low: number; close: number; volume: number }>;
+    return json.slice(0, 200).reverse().map((d) => ({
+      timestamp: new Date(d.date).getTime(), open: d.open, high: d.high,
+      low: d.low, close: d.close, volume: d.volume,
+    }));
+  } else if (market === 'cn' || market === 'metal') {
+    const res = await fetch(`https://eodhd.com/api/eod/${symbol}?api_token=${env.EODHD_API_KEY}&fmt=json&period=d&order=a`);
+    if (!res.ok) throw new Error(`EODHD ${res.status}`);
+    const json = await res.json() as Array<{ date: string; open: number; high: number; low: number; close: number; volume: number }>;
+    return json.slice(-200).map((d) => ({
+      timestamp: new Date(d.date).getTime(), open: d.open, high: d.high,
+      low: d.low, close: d.close, volume: d.volume,
+    }));
+  }
+  throw new Error(`Unsupported market: ${market}`);
+}
+
+interface HeatmapItem {
+  name: string;
+  symbol: string;
+  value: number;
+  price: number;
+  change: number;
+}
+
+async function fetchHeatmapData(market: string): Promise<HeatmapItem[]> {
+  if (market === 'crypto') {
+    const res = await fetch('https://api.bybit.com/v5/market/tickers?category=spot');
+    if (!res.ok) throw new Error(`Bybit ${res.status}`);
+    const json = await res.json() as { retCode: number; retMsg: string; result: { list: Array<{ symbol: string; turnover24h: string; lastPrice: string; price24hPcnt: string }> } };
+    if (json.retCode !== 0) throw new Error(`Bybit: ${json.retMsg}`);
+    const list = json.result.list || [];
+    return list.filter((t) => t.symbol.endsWith('USDT'))
+      .sort((x, y) => parseFloat(y.turnover24h) - parseFloat(x.turnover24h))
+      .slice(0, 50)
+      .map((t) => ({
+        name: t.symbol.replace('USDT', ''), symbol: t.symbol,
+        value: parseFloat(t.turnover24h), price: parseFloat(t.lastPrice),
+        change: parseFloat(t.price24hPcnt) * 100,
+      }));
+  }
+  return [];
+}
+
+async function fetchFundamentals(symbol: string, env: Env): Promise<Record<string, unknown>> {
+  const res = await fetch(`https://financialmodelingprep.com/stable/profile?symbol=${symbol}&apikey=${env.FMP_API_KEY}`);
+  if (!res.ok) throw new Error(`FMP ${res.status}`);
+  const json = await res.json() as Record<string, unknown>[];
+  return json[0] || {};
+}
+
 // ─── GET /api/kline ─────────────────────────────────────────
-async function handleKline(url, env, cors) {
+async function handleKline(url: URL, env: Env, cors: Record<string, string>): Promise<Response> {
   const symbol = url.searchParams.get('symbol') || '';
   const market = url.searchParams.get('market') || '';
   const interval = url.searchParams.get('interval') || '1d';
@@ -64,71 +157,21 @@ async function handleKline(url, env, cors) {
     return jsonResponse({ error: 'symbol and market required', code: 'MISSING_PARAMS' }, 400, cors);
   }
 
+  // Validate market
+  if (market !== 'crypto' && market !== 'us' && market !== 'cn' && market !== 'metal') {
+    return jsonResponse({ error: `Unsupported market: ${market}`, code: 'UNSUPPORTED_MARKET' }, 400, cors);
+  }
+
   try {
-    let data;
-    if (market === 'crypto') {
-      // Bybit V5 API — Binance blocks CF Worker IPs, Bybit doesn't
-      // Response: { result: { list: [[ts, open, high, low, close, volume, turnover], ...] } }
-      // Bybit returns newest first, need to reverse
-      const bybitInterval = toBybitInterval(interval);
-      const res = await fetch(
-        `https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=${bybitInterval}&limit=200`,
-      );
-      if (!res.ok) throw new Error(`Bybit ${res.status}`);
-      const json = await res.json();
-      if (json.retCode !== 0) throw new Error(`Bybit: ${json.retMsg}`);
-      const list = json.result.list || [];
-      // Reverse to chronological order (Bybit returns newest first)
-      data = list.reverse().map((item) => ({
-        timestamp: parseInt(item[0]),
-        open: parseFloat(item[1]),
-        high: parseFloat(item[2]),
-        low: parseFloat(item[3]),
-        close: parseFloat(item[4]),
-        volume: parseFloat(item[5]),
-      }));
-    } else if (market === 'us') {
-      // FMP /stable/historical-price-eod/full — returns flat array, newest first
-      const res = await fetch(
-        `https://financialmodelingprep.com/stable/historical-price-eod/full?symbol=${symbol}&apikey=${env.FMP_API_KEY}`,
-      );
-      if (!res.ok) throw new Error(`FMP ${res.status}`);
-      const json = await res.json();
-      // FMP returns newest first, reverse to chronological, take 200
-      data = json.slice(0, 200).reverse().map((d) => ({
-        timestamp: new Date(d.date).getTime(),
-        open: d.open,
-        high: d.high,
-        low: d.low,
-        close: d.close,
-        volume: d.volume,
-      }));
-    } else if (market === 'cn' || market === 'metal') {
-      // EODHD /api/eod/ — order=a for ascending
-      const res = await fetch(
-        `https://eodhd.com/api/eod/${symbol}?api_token=${env.EODHD_API_KEY}&fmt=json&period=d&order=a`,
-      );
-      if (!res.ok) throw new Error(`EODHD ${res.status}`);
-      const json = await res.json();
-      data = json.slice(-200).map((d) => ({
-        timestamp: new Date(d.date).getTime(),
-        open: d.open,
-        high: d.high,
-        low: d.low,
-        close: d.close,
-        volume: d.volume,
-      }));
-    } else {
-      return jsonResponse({ error: `Unsupported market: ${market}`, code: 'UNSUPPORTED_MARKET' }, 400, cors);
-    }
+    const data = await fetchKlineData(symbol, market, interval, env);
     return jsonResponse({ data }, 200, cors);
   } catch (e) {
-    return jsonResponse({ error: e.message, code: 'UPSTREAM_ERROR' }, 502, cors);
+    return jsonResponse({ error: e instanceof Error ? e.message : String(e), code: 'UPSTREAM_ERROR' }, 502, cors);
   }
 }
 
 // ─── GET /api/quote ─────────────────────────────────────────
-async function handleQuote(url, env, cors) {
+async function handleQuote(url: URL, env: Env, cors: Record<string, string>): Promise<Response> {
   const symbol = url.searchParams.get('symbol') || '';
   const market = url.searchParams.get('market') || '';
 
@@ -141,9 +184,9 @@ async function handleQuote(url, env, cors) {
       // Bybit V5 tickers
       const res = await fetch(`https://api.bybit.com/v5/market/tickers?category=spot&symbol=${symbol}`);
       if (!res.ok) throw new Error(`Bybit ${res.status}`);
-      const json = await res.json();
+      const json = await res.json() as { retCode: number; retMsg: string; result: { list: Array<{ symbol: string; lastPrice: string; prevPrice24h: string; price24hPcnt: string; volume24h: string; turnover24h: string }> } };
       if (json.retCode !== 0) throw new Error(`Bybit: ${json.retMsg}`);
-      const t = (json.result.list || [])[0] || {};
+      const t = (json.result.list || [])[0] || {} as Record<string, string>;
       return jsonResponse({
         symbol: t.symbol || symbol,
         price: parseFloat(t.lastPrice) || 0,
@@ -158,8 +201,8 @@ async function handleQuote(url, env, cors) {
         `https://financialmodelingprep.com/stable/quote?symbol=${symbol}&apikey=${env.FMP_API_KEY}`,
       );
       if (!res.ok) throw new Error(`FMP ${res.status}`);
-      const json = await res.json();
-      const q = json[0] || {};
+      const json = await res.json() as Array<{ symbol: string; price: number; change: number; changePercentage: number; volume: number; marketCap: number; name: string }>;
+      const q = json[0] || {} as Record<string, unknown>;
       return jsonResponse({
         symbol: q.symbol,
         price: q.price || 0,
@@ -175,14 +218,14 @@ async function handleQuote(url, env, cors) {
         `https://eodhd.com/api/real-time/${symbol}?api_token=${env.EODHD_API_KEY}&fmt=json`,
       );
       if (!res.ok) throw new Error(`EODHD ${res.status}`);
-      const q = await res.json();
+      const q = await res.json() as { close: number | string | undefined; change: number; change_p: number; volume: number };
       // Fallback: when real-time returns "NA" (market closed / weekends), use latest EOD data
       if (q.close === 'NA' || q.close === undefined) {
         const eodRes = await fetch(
           `https://eodhd.com/api/eod/${symbol}?api_token=${env.EODHD_API_KEY}&fmt=json&period=d&order=d&limit=2`,
         );
         if (eodRes.ok) {
-          const eodData = await eodRes.json();
+          const eodData = await eodRes.json() as Array<{ close: number; adjusted_close: number; volume: number }>;
           if (eodData.length >= 1) {
             const latest = eodData[0];
             const prev = eodData.length >= 2 ? eodData[1] : null;
@@ -209,12 +252,12 @@ async function handleQuote(url, env, cors) {
     }
     return jsonResponse({ error: `Unsupported market: ${market}`, code: 'UNSUPPORTED_MARKET' }, 400, cors);
   } catch (e) {
-    return jsonResponse({ error: e.message, code: 'UPSTREAM_ERROR' }, 502, cors);
+    return jsonResponse({ error: e instanceof Error ? e.message : String(e), code: 'UPSTREAM_ERROR' }, 502, cors);
   }
 }
 
 // ─── GET /api/search ────────────────────────────────────────
-async function handleSearch(url, env, cors) {
+async function handleSearch(url: URL, env: Env, cors: Record<string, string>): Promise<Response> {
   const query = url.searchParams.get('q') || '';
   const market = url.searchParams.get('market') || '';
 
@@ -229,7 +272,7 @@ async function handleSearch(url, env, cors) {
         `https://financialmodelingprep.com/stable/search-name?query=${encodeURIComponent(query)}&limit=10&apikey=${env.FMP_API_KEY}`,
       );
       if (!res.ok) return jsonResponse({ results: [] }, 200, cors);
-      const json = await res.json();
+      const json = await res.json() as Array<{ symbol: string; name: string; exchange: string; currency: string }>;
       return jsonResponse({
         results: json.map((r) => ({
           symbol: r.symbol,
@@ -244,7 +287,7 @@ async function handleSearch(url, env, cors) {
         `https://eodhd.com/api/search/${encodeURIComponent(query)}?api_token=${env.EODHD_API_KEY}&fmt=json`,
       );
       if (!res.ok) return jsonResponse({ results: [] }, 200, cors);
-      const json = await res.json();
+      const json = await res.json() as Array<{ Code: string; Exchange: string; Name: string; Type: string }>;
       return jsonResponse({
         results: json.slice(0, 10).map((r) => ({
           symbol: `${r.Code}.${r.Exchange}`,
@@ -258,13 +301,13 @@ async function handleSearch(url, env, cors) {
       return jsonResponse({ results: [] }, 200, cors);
     }
     return jsonResponse({ results: [] }, 200, cors);
-  } catch (e) {
+  } catch {
     return jsonResponse({ results: [] }, 200, cors);
   }
 }
 
 // ─── GET /api/fundamentals ──────────────────────────────────
-async function handleFundamentals(url, env, cors) {
+async function handleFundamentals(url: URL, env: Env, cors: Record<string, string>): Promise<Response> {
   const symbol = url.searchParams.get('symbol') || '';
   const market = url.searchParams.get('market') || 'us';
 
@@ -274,124 +317,38 @@ async function handleFundamentals(url, env, cors) {
 
   try {
     if (market === 'us') {
-      // FMP /stable/profile — returns array with companyName, marketCap, etc.
-      const res = await fetch(
-        `https://financialmodelingprep.com/stable/profile?symbol=${symbol}&apikey=${env.FMP_API_KEY}`,
-      );
-      if (!res.ok) throw new Error(`FMP ${res.status}`);
-      const json = await res.json();
-      return jsonResponse(json[0] || {}, 200, cors);
+      const data = await fetchFundamentals(symbol, env);
+      return jsonResponse(data, 200, cors);
     } else if (market === 'cn') {
       // EODHD /api/fundamentals/
       const res = await fetch(
         `https://eodhd.com/api/fundamentals/${symbol}?api_token=${env.EODHD_API_KEY}&fmt=json`,
       );
       if (!res.ok) throw new Error(`EODHD ${res.status}`);
-      const json = await res.json();
+      const json = await res.json() as Record<string, unknown>;
       return jsonResponse(json, 200, cors);
     }
     // crypto & metal: no fundamentals
     return jsonResponse({ error: 'Fundamentals not available for this market', code: 'NOT_AVAILABLE' }, 400, cors);
   } catch (e) {
-    return jsonResponse({ error: e.message, code: 'UPSTREAM_ERROR' }, 502, cors);
+    return jsonResponse({ error: e instanceof Error ? e.message : String(e), code: 'UPSTREAM_ERROR' }, 502, cors);
   }
 }
 
 // ─── GET /api/screener ──────────────────────────────────────
-async function handleScreener(url, env, cors) {
+async function handleScreener(url: URL, env: Env, cors: Record<string, string>): Promise<Response> {
   const market = url.searchParams.get('market') || '';
 
   try {
     if (market === 'crypto') {
-      // Bybit V5 tickers — get all spot tickers, filter USDT pairs, sort by turnover
-      const res = await fetch('https://api.bybit.com/v5/market/tickers?category=spot');
-      if (!res.ok) throw new Error(`Bybit ${res.status}`);
-      const json = await res.json();
-      if (json.retCode !== 0) throw new Error(`Bybit: ${json.retMsg}`);
-      const list = json.result.list || [];
-      const top = list
-        .filter((t) => t.symbol.endsWith('USDT'))
-        .sort((a, b) => parseFloat(b.turnover24h) - parseFloat(a.turnover24h))
-        .slice(0, 50)
-        .map((t) => ({
-          name: t.symbol.replace('USDT', ''),
-          symbol: t.symbol,
-          value: parseFloat(t.turnover24h),
-          price: parseFloat(t.lastPrice),
-          change: parseFloat(t.price24hPcnt) * 100,
-        }));
+      const top = await fetchHeatmapData(market);
       return jsonResponse({ data: top }, 200, cors);
     }
     // us, cn, metal: return empty (screener only for crypto)
     return jsonResponse({ data: [] }, 200, cors);
   } catch (e) {
-    return jsonResponse({ error: e.message, code: 'UPSTREAM_ERROR' }, 502, cors);
+    return jsonResponse({ error: e instanceof Error ? e.message : String(e), code: 'UPSTREAM_ERROR' }, 502, cors);
   }
-}
-
-// ─── market 归一化（MiniMax tool enum → 前端 MarketType）──
-function normalizeMarket(m) {
-  return { us_stock: 'us', a_share: 'cn', commodity: 'metal' }[m] || m || 'crypto';
-}
-
-// ─── 公共数据获取（多个 tool 共享，独立于 TOOL_REGISTRY）──
-
-async function fetchKlineData(symbol, market, timeframe, env) {
-  const interval = timeframe || '1d';
-  if (market === 'crypto') {
-    const bybitInterval = toBybitInterval(interval);
-    const res = await fetch(`https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=${bybitInterval}&limit=200`);
-    if (!res.ok) throw new Error(`Bybit ${res.status}`);
-    const json = await res.json();
-    if (json.retCode !== 0) throw new Error(`Bybit: ${json.retMsg}`);
-    return (json.result.list || []).reverse().map((item) => ({
-      timestamp: parseInt(item[0]), open: parseFloat(item[1]), high: parseFloat(item[2]),
-      low: parseFloat(item[3]), close: parseFloat(item[4]), volume: parseFloat(item[5]),
-    }));
-  } else if (market === 'us') {
-    const res = await fetch(`https://financialmodelingprep.com/stable/historical-price-eod/full?symbol=${symbol}&apikey=${env.FMP_API_KEY}`);
-    if (!res.ok) throw new Error(`FMP ${res.status}`);
-    const json = await res.json();
-    return json.slice(0, 200).reverse().map((d) => ({
-      timestamp: new Date(d.date).getTime(), open: d.open, high: d.high,
-      low: d.low, close: d.close, volume: d.volume,
-    }));
-  } else if (market === 'cn' || market === 'metal') {
-    const res = await fetch(`https://eodhd.com/api/eod/${symbol}?api_token=${env.EODHD_API_KEY}&fmt=json&period=d&order=a`);
-    if (!res.ok) throw new Error(`EODHD ${res.status}`);
-    const json = await res.json();
-    return json.slice(-200).map((d) => ({
-      timestamp: new Date(d.date).getTime(), open: d.open, high: d.high,
-      low: d.low, close: d.close, volume: d.volume,
-    }));
-  }
-  throw new Error(`Unsupported market: ${market}`);
-}
-
-async function fetchHeatmapData(market) {
-  if (market === 'crypto') {
-    const res = await fetch('https://api.bybit.com/v5/market/tickers?category=spot');
-    if (!res.ok) throw new Error(`Bybit ${res.status}`);
-    const json = await res.json();
-    if (json.retCode !== 0) throw new Error(`Bybit: ${json.retMsg}`);
-    const list = json.result.list || [];
-    return list.filter((t) => t.symbol.endsWith('USDT'))
-      .sort((x, y) => parseFloat(y.turnover24h) - parseFloat(x.turnover24h))
-      .slice(0, 50)
-      .map((t) => ({
-        name: t.symbol.replace('USDT', ''), symbol: t.symbol,
-        value: parseFloat(t.turnover24h), price: parseFloat(t.lastPrice),
-        change: parseFloat(t.price24hPcnt) * 100,
-      }));
-  }
-  return [];
-}
-
-async function fetchFundamentals(symbol, env) {
-  const res = await fetch(`https://financialmodelingprep.com/stable/profile?symbol=${symbol}&apikey=${env.FMP_API_KEY}`);
-  if (!res.ok) throw new Error(`FMP ${res.status}`);
-  const json = await res.json();
-  return json[0] || {};
 }
 
 // ─── TOOL_REGISTRY — 单一真相源 ─────────────────────────────
@@ -401,7 +358,7 @@ async function fetchFundamentals(symbol, env) {
 // ⚠️ whenToUse 是手写路由规则，加新 tool 时必须同步更新
 //    buildSystemPrompt() 末尾的优先级列表。
 
-const TOOL_REGISTRY = {
+const TOOL_REGISTRY: Record<string, ToolEntry> = {
   gainlab_kline: {
     description: 'Generate a K-line (candlestick) chart for any supported asset',
     whenToUse: 'User wants to see a price chart, candlestick, or OHLCV data. Examples: "看BTC", "show AAPL chart", "ETH走势"',
@@ -414,9 +371,9 @@ const TOOL_REGISTRY = {
       },
       required: ['symbol', 'market'],
     },
-    toWidgetState: (a) => ({ type: 'kline', symbol: a.symbol, market: normalizeMarket(a.market), period: a.timeframe || '1D' }),
+    toWidgetState: (a) => ({ type: 'kline', symbol: a.symbol as string, market: normalizeMarket(a.market as string), period: (a.timeframe as string) || '1D' }),
     execute: async (a, env) => {
-      const data = await fetchKlineData(a.symbol, normalizeMarket(a.market), a.timeframe, env);
+      const data = await fetchKlineData(a.symbol as string, normalizeMarket(a.market as string), a.timeframe as string | undefined, env);
       return { data };
     },
   },
@@ -433,12 +390,12 @@ const TOOL_REGISTRY = {
       },
       required: ['symbols', 'markets'],
     },
-    toWidgetState: (a) => ({ type: 'overlay', symbols: a.symbols || [], markets: (a.markets || []).map(normalizeMarket), period: a.timeframe || '1D' }),
+    toWidgetState: (a) => ({ type: 'overlay', symbols: (a.symbols as string[]) || [], markets: ((a.markets as string[]) || []).map(normalizeMarket), period: (a.timeframe as string) || '1D' }),
     execute: async (a, env) => {
-      const symbols = a.symbols || [];
-      const markets = (a.markets || []).map(normalizeMarket);
+      const symbols = (a.symbols as string[]) || [];
+      const markets = ((a.markets as string[]) || []).map(normalizeMarket);
       const results = await Promise.all(
-        symbols.map((sym, i) => fetchKlineData(sym, markets[i] || 'crypto', a.timeframe, env).catch(() => []))
+        symbols.map((sym, i) => fetchKlineData(sym, markets[i] || 'crypto', a.timeframe as string | undefined, env).catch(() => [] as KlineBar[]))
       );
       return { series: symbols.map((sym, i) => ({ symbol: sym, market: markets[i] || 'crypto', data: results[i] || [] })) };
     },
@@ -457,9 +414,9 @@ const TOOL_REGISTRY = {
       },
       required: ['symbol', 'market', 'indicators'],
     },
-    toWidgetState: (a) => ({ type: 'kline', symbol: a.symbol, market: normalizeMarket(a.market), period: a.timeframe || '1D', indicators: a.indicators }),
+    toWidgetState: (a) => ({ type: 'kline', symbol: a.symbol as string, market: normalizeMarket(a.market as string), period: (a.timeframe as string) || '1D', indicators: a.indicators }),
     execute: async (a, env) => {
-      const data = await fetchKlineData(a.symbol, normalizeMarket(a.market), a.timeframe, env);
+      const data = await fetchKlineData(a.symbol as string, normalizeMarket(a.market as string), a.timeframe as string | undefined, env);
       return { data };
     },
   },
@@ -475,11 +432,11 @@ const TOOL_REGISTRY = {
       },
       required: ['symbol'],
     },
-    toWidgetState: (a) => ({ type: 'fundamentals', symbol: a.symbol, market: 'us' }),
+    toWidgetState: (a) => ({ type: 'fundamentals', symbol: a.symbol as string, market: 'us' }),
     execute: async (a, env) => {
-      const market = normalizeMarket(a.market);
+      const market = normalizeMarket(a.market as string);
       if (market === 'us' || !a.market) {
-        return await fetchFundamentals(a.symbol, env);
+        return await fetchFundamentals(a.symbol as string, env);
       }
       return { error: 'Fundamentals not available for this market' };
     },
@@ -497,9 +454,9 @@ const TOOL_REGISTRY = {
       },
       required: ['symbol', 'market'],
     },
-    toWidgetState: (a) => ({ type: 'volume_profile', symbol: a.symbol, market: normalizeMarket(a.market), period: a.timeframe || '1D' }),
+    toWidgetState: (a) => ({ type: 'volume_profile', symbol: a.symbol as string, market: normalizeMarket(a.market as string), period: (a.timeframe as string) || '1D' }),
     execute: async (a, env) => {
-      const data = await fetchKlineData(a.symbol, normalizeMarket(a.market), a.timeframe, env);
+      const data = await fetchKlineData(a.symbol as string, normalizeMarket(a.market as string), a.timeframe as string | undefined, env);
       return { data };
     },
   },
@@ -514,9 +471,9 @@ const TOOL_REGISTRY = {
       },
       required: ['market'],
     },
-    toWidgetState: (a) => ({ type: 'heatmap', market: normalizeMarket(a.market) }),
+    toWidgetState: (a) => ({ type: 'heatmap', market: normalizeMarket(a.market as string) }),
     execute: async (a) => {
-      const data = await fetchHeatmapData(normalizeMarket(a.market));
+      const data = await fetchHeatmapData(normalizeMarket(a.market as string));
       return { data };
     },
   },
@@ -533,9 +490,9 @@ const TOOL_REGISTRY = {
       },
       required: ['symbol', 'market'],
     },
-    toWidgetState: (a) => ({ type: 'kline', symbol: a.symbol, market: normalizeMarket(a.market), period: a.timeframe || '1D', showWRB: true }),
+    toWidgetState: (a) => ({ type: 'kline', symbol: a.symbol as string, market: normalizeMarket(a.market as string), period: (a.timeframe as string) || '1D', showWRB: true }),
     execute: async (a, env) => {
-      const data = await fetchKlineData(a.symbol, normalizeMarket(a.market), a.timeframe, env);
+      const data = await fetchKlineData(a.symbol as string, normalizeMarket(a.market as string), a.timeframe as string | undefined, env);
       return { data };
     },
   },
@@ -543,7 +500,7 @@ const TOOL_REGISTRY = {
 
 // ─── 从 TOOL_REGISTRY 自动生成 ──────────────────────────────
 
-function buildSystemPrompt(registry) {
+function buildSystemPrompt(registry: Record<string, ToolEntry>): string {
   const toolDescriptions = Object.entries(registry).map(([name, tool]) => {
     return `- ${name}: ${tool.description}\n  WHEN TO USE: ${tool.whenToUse}`;
   }).join('\n');
@@ -573,7 +530,16 @@ Tool selection priority (most specific wins):
 7. For any other chart/price request → gainlab_kline (default)`;
 }
 
-function buildToolDefs(registry) {
+interface MiniMaxToolDef {
+  type: string;
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
+}
+
+function buildToolDefs(registry: Record<string, ToolEntry>): MiniMaxToolDef[] {
   return Object.entries(registry).map(([name, tool]) => ({
     type: 'function',
     function: {
@@ -588,23 +554,23 @@ function buildToolDefs(registry) {
 const SYSTEM_PROMPT = buildSystemPrompt(TOOL_REGISTRY);
 const TOOLS = buildToolDefs(TOOL_REGISTRY);
 
-async function executeTool(toolName, toolArgs, env) {
+async function executeTool(toolName: string, toolArgs: Record<string, unknown>, env: Env): Promise<unknown> {
   const entry = TOOL_REGISTRY[toolName];
   if (!entry?.execute) return { error: `Unknown tool: ${toolName}` };
   try {
     return await entry.execute(toolArgs || {}, env);
   } catch (e) {
-    return { error: e.message };
+    return { error: e instanceof Error ? e.message : String(e) };
   }
 }
 
-function toWidgetState(toolName, toolArgs) {
+function toWidgetState(toolName: string, toolArgs: Record<string, unknown>): WidgetState | null {
   const entry = TOOL_REGISTRY[toolName];
   return entry?.toWidgetState ? entry.toWidgetState(toolArgs || {}) : null;
 }
 
 // ─── <think> 标签过滤 ──────────────────────────────────────
-function stripThinkTags(text) {
+function stripThinkTags(text: string): string {
   return text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 }
 
@@ -619,28 +585,55 @@ function stripThinkTags(text) {
 //   {"type":"tool_result","result":{...},"widgetState":{...}}
 //   [DONE]
 //
-function createSSEMiddleware(upstreamBody, env) {
+
+interface PendingToolCall {
+  name: string;
+  arguments_str: string;
+}
+
+interface MiniMaxDelta {
+  content?: string;
+  tool_calls?: Array<{
+    index?: number;
+    id?: string;
+    function?: {
+      name?: string;
+      arguments?: string;
+    };
+  }>;
+}
+
+interface MiniMaxChoice {
+  delta?: MiniMaxDelta;
+  finish_reason?: string | null;
+}
+
+interface MiniMaxChunk {
+  choices?: MiniMaxChoice[];
+}
+
+function createSSEMiddleware(upstreamBody: ReadableStream<Uint8Array>, env: Env): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
   // 累积 tool_calls（MiniMax 可能分多个 chunk 发送 arguments）
-  let pendingToolCalls = {};  // id → { name, arguments_str }
+  let pendingToolCalls: Record<string, PendingToolCall> = {};
 
   // 跨 chunk think 标签过滤状态
   let insideThink = false;     // 当前是否在 <think> 块内
   let thinkBuffer = '';        // 缓冲区（处理 <think> 或 </think> 标签跨 chunk 的情况）
 
-  const stream = new ReadableStream({
+  const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const reader = upstreamBody.getReader();
       let buffer = '';
 
-      function send(obj) {
+      function send(obj: Record<string, unknown>): void {
         controller.enqueue(encoder.encode('data: ' + JSON.stringify(obj) + '\n\n'));
       }
 
       // 跨 chunk 的 think 过滤器
-      function filterThink(text) {
+      function filterThink(text: string): string {
         let result = '';
         thinkBuffer += text;
 
@@ -710,9 +703,9 @@ function createSSEMiddleware(upstreamBody, env) {
               continue;
             }
 
-            let parsed;
+            let parsed: MiniMaxChunk;
             try {
-              parsed = JSON.parse(payload);
+              parsed = JSON.parse(payload) as MiniMaxChunk;
             } catch {
               continue; // 跳过无法解析的行
             }
@@ -760,8 +753,8 @@ function createSSEMiddleware(upstreamBody, env) {
             // ── finish_reason = tool_calls → 执行所有 pending tools ──
             if (finishReason === 'tool_calls') {
               for (const [id, tc] of Object.entries(pendingToolCalls)) {
-                let args = {};
-                try { args = JSON.parse(tc.arguments_str); } catch {}
+                let args: Record<string, unknown> = {};
+                try { args = JSON.parse(tc.arguments_str) as Record<string, unknown>; } catch { /* empty */ }
 
                 // 发送 tool_call 事件
                 send({ type: 'tool_call', tool: { id, name: tc.name, arguments: args } });
@@ -771,7 +764,7 @@ function createSSEMiddleware(upstreamBody, env) {
                 const widgetState = toWidgetState(tc.name, args);
 
                 // 发送 tool_result + widgetState
-                const event = { type: 'tool_result', result };
+                const event: Record<string, unknown> = { type: 'tool_result', result };
                 if (widgetState) event.widgetState = widgetState;
                 send(event);
               }
@@ -783,7 +776,7 @@ function createSSEMiddleware(upstreamBody, env) {
           }
         }
       } catch (e) {
-        send({ type: 'error', message: e.message || 'SSE middleware error' });
+        send({ type: 'error', message: e instanceof Error ? e.message : 'SSE middleware error' });
       } finally {
         controller.close();
       }
@@ -793,10 +786,15 @@ function createSSEMiddleware(upstreamBody, env) {
   return stream;
 }
 
-// SYSTEM_PROMPT and TOOLS are now auto-generated from TOOL_REGISTRY above (line ~588)
+// SYSTEM_PROMPT and TOOLS are now auto-generated from TOOL_REGISTRY above
+
+interface ChatMessage {
+  role: string;
+  content: string;
+}
 
 export default {
-  async fetch(request, env) {
+  async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const origin = request.headers.get('Origin') || '';
     const cors = corsHeaders(origin, env.ALLOWED_ORIGIN);
@@ -833,7 +831,7 @@ export default {
     }
 
     try {
-      const body = await request.json();
+      const body = await request.json() as { messages?: ChatMessage[] };
       const { messages } = body;
 
       if (!messages || !Array.isArray(messages)) {
@@ -871,7 +869,7 @@ export default {
       }
 
       // SSE 中间件：解析 MiniMax 流 → 转换格式 + 执行 tool + 注入 widgetState
-      const enrichedStream = createSSEMiddleware(miniMaxResponse.body, env);
+      const enrichedStream = createSSEMiddleware(miniMaxResponse.body!, env);
       return new Response(enrichedStream, {
         status: 200,
         headers: {
@@ -882,10 +880,13 @@ export default {
         },
       });
     } catch (e) {
-      return new Response(JSON.stringify({ error: 'Internal error', detail: e.message }), {
+      return new Response(JSON.stringify({ error: 'Internal error', detail: e instanceof Error ? e.message : String(e) }), {
         status: 500,
         headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
   },
 };
+
+// stripThinkTags is defined but used indirectly via SSE middleware's filterThink
+void stripThinkTags;
