@@ -3,7 +3,7 @@
 // + REST GET endpoints for kline, quote, search, fundamentals, screener
 //
 // Crypto: Bybit API (Binance blocks CF Worker IPs)
-// US/CN/Metal: EODHD (FMP removed — 429 rate limit issues, EODHD 100k req/day)
+// US/CN/Metal: EODHD primary, FMP fallback for US (429 prone but has unique data)
 
 import type { KlineBar, WidgetState, WorkerMarketType } from './types';
 
@@ -12,7 +12,7 @@ interface Env {
   MINIMAX_API_KEY: string;
   ALLOWED_ORIGIN: string;
   EODHD_API_KEY: string;
-  // FMP_API_KEY removed — all markets now use EODHD (more stable, 100k req/day vs FMP 429 issues)
+  FMP_API_KEY: string; // fallback for US stocks when EODHD fails
 }
 
 // ─── ToolEntry ──────────────────────────────────────────────
@@ -78,6 +78,26 @@ function normalizeMarket(m: string): WorkerMarketType {
   return map[m] || (m as WorkerMarketType) || 'crypto';
 }
 
+// ─── EODHD → FMP fallback（仅 US 市场）──────────────────────
+// EODHD 是主数据源，FMP 是 fallback。两个都有就双保险。
+async function fetchWithFallback<T>(
+  eodhFn: () => Promise<T>,
+  fmpFn: (() => Promise<T>) | null,
+): Promise<T> {
+  try {
+    return await eodhFn();
+  } catch (eodhErr) {
+    if (fmpFn) {
+      try {
+        return await fmpFn();
+      } catch {
+        // Both failed — throw the original EODHD error
+      }
+    }
+    throw eodhErr;
+  }
+}
+
 // ─── 公共数据获取（多个 tool 共享，独立于 TOOL_REGISTRY）──
 
 async function fetchKlineData(symbol: string, market: string, timeframe: string | undefined, env: Env): Promise<KlineBar[]> {
@@ -93,15 +113,31 @@ async function fetchKlineData(symbol: string, market: string, timeframe: string 
       low: parseFloat(item[3]), close: parseFloat(item[4]), volume: parseFloat(item[5]),
     }));
   } else if (market === 'us' || market === 'cn' || market === 'metal') {
-    // All non-crypto markets use EODHD: us → AAPL.US, cn → 600519.SHG, metal → XAU.COMM
     const eodhSymbol = market === 'us' ? `${symbol}.US` : symbol;
-    const res = await fetch(`https://eodhd.com/api/eod/${eodhSymbol}?api_token=${env.EODHD_API_KEY}&fmt=json&period=d&order=a`);
-    if (!res.ok) throw new Error(`EODHD ${res.status}`);
-    const json = await res.json() as Array<{ date: string; open: number; high: number; low: number; close: number; volume: number }>;
-    return json.slice(-200).map((d) => ({
-      timestamp: new Date(d.date).getTime(), open: d.open, high: d.high,
-      low: d.low, close: d.close, volume: d.volume,
-    }));
+    const parseEod = (json: Array<{ date: string; open: number; high: number; low: number; close: number; volume: number }>): KlineBar[] =>
+      json.slice(-200).map((d) => ({
+        timestamp: new Date(d.date).getTime(), open: d.open, high: d.high,
+        low: d.low, close: d.close, volume: d.volume,
+      }));
+
+    return fetchWithFallback(
+      // EODHD primary
+      async () => {
+        const res = await fetch(`https://eodhd.com/api/eod/${eodhSymbol}?api_token=${env.EODHD_API_KEY}&fmt=json&period=d&order=a`);
+        if (!res.ok) throw new Error(`EODHD ${res.status}`);
+        return parseEod(await res.json() as Array<{ date: string; open: number; high: number; low: number; close: number; volume: number }>);
+      },
+      // FMP fallback (US only)
+      market === 'us' && env.FMP_API_KEY ? async () => {
+        const res = await fetch(`https://financialmodelingprep.com/stable/historical-price-eod/full?symbol=${symbol}&apikey=${env.FMP_API_KEY}`);
+        if (!res.ok) throw new Error(`FMP ${res.status}`);
+        const json = await res.json() as Array<{ date: string; open: number; high: number; low: number; close: number; volume: number }>;
+        return json.slice(0, 200).reverse().map((d) => ({
+          timestamp: new Date(d.date).getTime(), open: d.open, high: d.high,
+          low: d.low, close: d.close, volume: d.volume,
+        }));
+      } : null,
+    );
   }
   throw new Error(`Unsupported market: ${market}`);
 }
@@ -134,32 +170,35 @@ async function fetchHeatmapData(market: string): Promise<HeatmapItem[]> {
 }
 
 async function fetchFundamentals(symbol: string, env: Env): Promise<Record<string, unknown>> {
-  const res = await fetch(`https://eodhd.com/api/fundamentals/${symbol}.US?api_token=${env.EODHD_API_KEY}&fmt=json`);
-  if (!res.ok) throw new Error(`EODHD ${res.status}`);
-  const json = await res.json() as Record<string, unknown>;
-  // Flatten EODHD structure to match frontend expectations
-  const general = (json.General || {}) as Record<string, unknown>;
-  const highlights = (json.Highlights || {}) as Record<string, unknown>;
-  const valuation = (json.Valuation || {}) as Record<string, unknown>;
-  return {
-    symbol: general.Code,
-    companyName: general.Name,
-    sector: general.Sector,
-    industry: general.Industry,
-    description: general.Description,
-    country: general.CountryName,
-    mktCap: highlights.MarketCapitalization,
-    price: highlights.WallStreetTargetPrice,
-    pe: highlights.PERatio,
-    eps: highlights.EarningsShare,
-    revenue: highlights.Revenue,
-    grossProfit: highlights.GrossProfitMRQ,
-    ebitda: highlights.EBITDA,
-    trailingPE: valuation.TrailingPE,
-    forwardPE: valuation.ForwardPE,
-    priceToBook: valuation.PriceBookMRQ,
-    priceToSales: valuation.PriceSalesTTM,
-  };
+  return fetchWithFallback(
+    // EODHD primary
+    async () => {
+      const res = await fetch(`https://eodhd.com/api/fundamentals/${symbol}.US?api_token=${env.EODHD_API_KEY}&fmt=json`);
+      if (!res.ok) throw new Error(`EODHD ${res.status}`);
+      const json = await res.json() as Record<string, unknown>;
+      const general = (json.General || {}) as Record<string, unknown>;
+      const highlights = (json.Highlights || {}) as Record<string, unknown>;
+      const valuation = (json.Valuation || {}) as Record<string, unknown>;
+      return {
+        symbol: general.Code, companyName: general.Name,
+        sector: general.Sector, industry: general.Industry,
+        description: general.Description, country: general.CountryName,
+        mktCap: highlights.MarketCapitalization, price: highlights.WallStreetTargetPrice,
+        pe: highlights.PERatio, eps: highlights.EarningsShare,
+        revenue: highlights.Revenue, grossProfit: highlights.GrossProfitMRQ,
+        ebitda: highlights.EBITDA, trailingPE: valuation.TrailingPE,
+        forwardPE: valuation.ForwardPE, priceToBook: valuation.PriceBookMRQ,
+        priceToSales: valuation.PriceSalesTTM,
+      };
+    },
+    // FMP fallback
+    env.FMP_API_KEY ? async () => {
+      const res = await fetch(`https://financialmodelingprep.com/stable/profile?symbol=${symbol}&apikey=${env.FMP_API_KEY}`);
+      if (!res.ok) throw new Error(`FMP ${res.status}`);
+      const json = await res.json() as Record<string, unknown>[];
+      return json[0] || {};
+    } : null,
+  );
 }
 
 // ─── GET /api/kline ─────────────────────────────────────────
@@ -211,43 +250,49 @@ async function handleQuote(url: URL, env: Env, cors: Record<string, string>): Pr
         quoteVolume: parseFloat(t.turnover24h) || 0,
       }, 200, cors);
     } else if (market === 'us' || market === 'cn' || market === 'metal') {
-      // EODHD /api/real-time/ — all non-crypto markets
       const eodhSymbol = market === 'us' ? `${symbol}.US` : symbol;
-      const res = await fetch(
-        `https://eodhd.com/api/real-time/${eodhSymbol}?api_token=${env.EODHD_API_KEY}&fmt=json`,
-      );
-      if (!res.ok) throw new Error(`EODHD ${res.status}`);
-      const q = await res.json() as { close: number | string | undefined; change: number; change_p: number; volume: number };
-      // Fallback: when real-time returns "NA" (market closed / weekends), use latest EOD data
-      if (q.close === 'NA' || q.close === undefined) {
-        const eodRes = await fetch(
-          `https://eodhd.com/api/eod/${eodhSymbol}?api_token=${env.EODHD_API_KEY}&fmt=json&period=d&order=d&limit=2`,
+      // EODHD real-time → EOD fallback → FMP fallback (US only)
+      const eodhQuote = async (): Promise<Record<string, unknown>> => {
+        const res = await fetch(
+          `https://eodhd.com/api/real-time/${eodhSymbol}?api_token=${env.EODHD_API_KEY}&fmt=json`,
         );
-        if (eodRes.ok) {
-          const eodData = await eodRes.json() as Array<{ close: number; adjusted_close: number; volume: number }>;
-          if (eodData.length >= 1) {
-            const latest = eodData[0];
-            const prev = eodData.length >= 2 ? eodData[1] : null;
-            const change = prev ? latest.close - prev.close : 0;
-            const changePct = prev && prev.close ? (change / prev.close) * 100 : 0;
-            return jsonResponse({
-              symbol: symbol,
-              price: latest.close || latest.adjusted_close || 0,
-              change: parseFloat(change.toFixed(4)),
-              changePercent: parseFloat(changePct.toFixed(2)),
-              volume: latest.volume || 0,
-              source: 'eod_fallback',
-            }, 200, cors);
+        if (!res.ok) throw new Error(`EODHD ${res.status}`);
+        const q = await res.json() as { close: number | string | undefined; change: number; change_p: number; volume: number };
+        // When real-time returns "NA" (market closed / weekends), use latest EOD data
+        if (q.close === 'NA' || q.close === undefined) {
+          const eodRes = await fetch(
+            `https://eodhd.com/api/eod/${eodhSymbol}?api_token=${env.EODHD_API_KEY}&fmt=json&period=d&order=d&limit=2`,
+          );
+          if (eodRes.ok) {
+            const eodData = await eodRes.json() as Array<{ close: number; adjusted_close: number; volume: number }>;
+            if (eodData.length >= 1) {
+              const latest = eodData[0];
+              const prev = eodData.length >= 2 ? eodData[1] : null;
+              const change = prev ? latest.close - prev.close : 0;
+              const changePct = prev && prev.close ? (change / prev.close) * 100 : 0;
+              return { symbol, price: latest.close || latest.adjusted_close || 0,
+                change: parseFloat(change.toFixed(4)), changePercent: parseFloat(changePct.toFixed(2)),
+                volume: latest.volume || 0, source: 'eod_fallback' as const };
+            }
           }
+          throw new Error('EODHD real-time NA and EOD fallback empty');
         }
-      }
-      return jsonResponse({
-        symbol: symbol,
-        price: q.close || 0,
-        change: q.change || 0,
-        changePercent: q.change_p || 0,
-        volume: q.volume || 0,
-      }, 200, cors);
+        return { symbol, price: q.close as number || 0, change: q.change || 0,
+          changePercent: q.change_p || 0, volume: q.volume || 0 };
+      };
+      const fmpQuote = market === 'us' && env.FMP_API_KEY ? async (): Promise<Record<string, unknown>> => {
+        const res = await fetch(
+          `https://financialmodelingprep.com/stable/quote?symbol=${symbol}&apikey=${env.FMP_API_KEY}`,
+        );
+        if (!res.ok) throw new Error(`FMP ${res.status}`);
+        const json = await res.json() as Array<{ symbol: string; price: number; change: number; changePercentage: number; volume: number; marketCap: number; name: string }>;
+        const q = json[0] || {} as Record<string, unknown>;
+        return { symbol: q.symbol || symbol, price: q.price || 0, change: q.change || 0,
+          changePercent: q.changePercentage || 0, volume: q.volume || 0,
+          marketCap: q.marketCap || 0, name: q.name || '', source: 'fmp_fallback' as const };
+      } : null;
+      const data = await fetchWithFallback(eodhQuote, fmpQuote);
+      return jsonResponse(data, 200, cors);
     }
     return jsonResponse({ error: `Unsupported market: ${market}`, code: 'UNSUPPORTED_MARKET' }, 400, cors);
   } catch (e) {
