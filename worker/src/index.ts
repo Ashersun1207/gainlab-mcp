@@ -24,10 +24,12 @@ function checkRateLimit(ip) {
 }
 
 // CORS headers
+const DEFAULT_ALLOWED_ORIGIN = 'https://ashersun1207.github.io';
 function corsHeaders(origin, allowedOrigin) {
-  const allowed = origin === allowedOrigin || origin.startsWith('http://localhost');
+  const effectiveAllowed = allowedOrigin || DEFAULT_ALLOWED_ORIGIN;
+  const allowed = origin === effectiveAllowed || origin.startsWith('http://localhost');
   return {
-    'Access-Control-Allow-Origin': allowed ? origin : allowedOrigin,
+    'Access-Control-Allow-Origin': allowed ? origin : effectiveAllowed,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
