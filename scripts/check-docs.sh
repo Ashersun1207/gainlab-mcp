@@ -44,7 +44,7 @@ if [ $MISSING_TOOLS -eq 0 ]; then
 fi
 
 # ── 2. Test count: actual vs README ────────────────────────────
-TEST_OUTPUT=$(npm test 2>&1)
+TEST_OUTPUT=$(npm test 2>&1) || true  # test failures shouldn't crash check-docs
 ACTUAL_TESTS=$(echo "$TEST_OUTPUT" | grep '# tests' | sed 's/.*tests //' || echo "")
 if [ -z "$ACTUAL_TESTS" ]; then
   # node --test format: "ℹ tests 216"

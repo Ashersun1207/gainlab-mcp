@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { getKlines, getFundamentals } from "../../src/data/index.js";
+import { apiTest } from "../helpers/api-guard.js";
 
 describe("getKlines router", () => {
   it("routes crypto market to Binance", async () => {
@@ -8,7 +9,7 @@ describe("getKlines router", () => {
     assert.ok(data.length === 5, "should return data from Binance");
   });
 
-  it("routes us_stock market to FMP", async () => {
+  apiTest("routes us_stock market to FMP", async () => {
     const data = await getKlines("AAPL", "us_stock", "1d", 5);
     assert.ok(data.length > 0, "should return data from FMP");
     assert.ok(data[0].close > 0, "should have valid price");
@@ -30,7 +31,7 @@ describe("getKlines router", () => {
     );
   });
 
-  it("routes a_stock market to EODHD", async () => {
+  apiTest("routes a_stock market to EODHD", async () => {
     const data = await getKlines("600519", "a_stock", "1d", 5);
     assert.ok(data.length > 0, "should return data from EODHD");
     assert.ok(data[0].close > 0, "should have valid price");
@@ -48,13 +49,13 @@ describe("getKlines router", () => {
 });
 
 describe("getFundamentals router", () => {
-  it("routes us_stock to FMP fundamentals", async () => {
+  apiTest("routes us_stock to FMP fundamentals", async () => {
     const data = await getFundamentals("AAPL", "us_stock", "annual", 2);
     assert.ok(data.length > 0, "should return fundamental data");
     assert.ok(data[0].metrics.revenue !== undefined, "should have revenue");
   });
 
-  it("routes a_stock to EODHD fundamentals", async () => {
+  apiTest("routes a_stock to EODHD fundamentals", async () => {
     const data = await getFundamentals("600519", "a_stock", "annual", 2);
     assert.ok(data.length > 0, "should return fundamental data");
     assert.ok(data[0].metrics.totalRevenue !== undefined || data[0].metrics.totalRevenue === null, "should have totalRevenue");

@@ -4,9 +4,10 @@ import {
   getAStockCashFlow,
   getAStockKeyMetrics,
 } from "../../src/data/a-stock.js";
+import { apiTest } from "../helpers/api-guard.js";
 
 describe("A-Stock Extended Data", () => {
-  it("should get cash flow data for 600519 (Moutai)", async () => {
+  apiTest("should get cash flow data for 600519 (Moutai)", async () => {
     const data = await getAStockCashFlow("600519", "annual", 3);
     
     assert.ok(Array.isArray(data), "Should return an array");
@@ -47,7 +48,7 @@ describe("A-Stock Extended Data", () => {
     }
   });
 
-  it("should get key metrics data for 600519 (Moutai)", async () => {
+  apiTest("should get key metrics data for 600519 (Moutai)", async () => {
     const data = await getAStockKeyMetrics("600519");
     
     assert.ok(data, "Should return data");
@@ -87,7 +88,7 @@ describe("A-Stock Extended Data", () => {
     }
   });
 
-  it("should get quarterly cash flow data", async () => {
+  apiTest("should get quarterly cash flow data", async () => {
     const data = await getAStockCashFlow("000001", "quarter", 4);
     
     assert.ok(Array.isArray(data), "Should return an array");
@@ -101,7 +102,7 @@ describe("A-Stock Extended Data", () => {
     );
   });
 
-  it("should handle symbol with exchange suffix", async () => {
+  apiTest("should handle symbol with exchange suffix", async () => {
     const data = await getAStockCashFlow("600519.SHG", "annual", 2);
     
     assert.ok(Array.isArray(data), "Should return an array");

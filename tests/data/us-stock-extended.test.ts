@@ -6,9 +6,10 @@ import {
   getUSStockDCF,
   getUSStockAnalystEstimates,
 } from "../../src/data/us-stock.js";
+import { apiTest } from "../helpers/api-guard.js";
 
 describe("US Stock Extended Data", () => {
-  it("should get cash flow data for AAPL", async () => {
+  apiTest("should get cash flow data for AAPL", async () => {
     const data = await getUSStockCashFlow("AAPL", "annual", 3);
     
     assert.ok(Array.isArray(data), "Should return an array");
@@ -41,7 +42,7 @@ describe("US Stock Extended Data", () => {
     }
   });
 
-  it("should get key metrics data for AAPL", async () => {
+  apiTest("should get key metrics data for AAPL", async () => {
     const data = await getUSStockKeyMetrics("AAPL", "annual", 3);
     
     assert.ok(Array.isArray(data), "Should return an array");
@@ -70,7 +71,7 @@ describe("US Stock Extended Data", () => {
     );
   });
 
-  it("should get DCF data for AAPL", async () => {
+  apiTest("should get DCF data for AAPL", async () => {
     const data = await getUSStockDCF("AAPL");
     
     assert.ok(data, "Should return data");
@@ -80,7 +81,7 @@ describe("US Stock Extended Data", () => {
     assert.ok(typeof data.stockPrice === "number", "stockPrice should be a number");
   });
 
-  it("should get analyst estimates for AAPL", async () => {
+  apiTest("should get analyst estimates for AAPL", async () => {
     const data = await getUSStockAnalystEstimates("AAPL", "annual", 2);
     
     assert.ok(Array.isArray(data), "Should return an array");
@@ -101,7 +102,7 @@ describe("US Stock Extended Data", () => {
     );
   });
 
-  it("should get quarterly cash flow data", async () => {
+  apiTest("should get quarterly cash flow data", async () => {
     const data = await getUSStockCashFlow("MSFT", "quarter", 4);
     
     assert.ok(Array.isArray(data), "Should return an array");

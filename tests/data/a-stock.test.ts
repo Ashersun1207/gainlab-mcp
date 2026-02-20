@@ -1,6 +1,7 @@
 import { describe, it, before } from "node:test";
 import assert from "node:assert";
 import { getAStockKlines, getAStockFundamentals } from "../../src/data/a-stock.js";
+import { apiTest } from "../helpers/api-guard.js";
 
 describe("A-Stock Data Layer (EODHD)", () => {
   before(() => {
@@ -13,7 +14,7 @@ describe("A-Stock Data Layer (EODHD)", () => {
   });
 
   describe("getAStockKlines", () => {
-    it("should fetch Shanghai stock klines with bare code (600519)", async () => {
+    apiTest("should fetch Shanghai stock klines with bare code (600519)", async () => {
       const symbol = "600519"; // 贵州茅台
       const limit = 10;
       const klines = await getAStockKlines(symbol, limit);
@@ -46,7 +47,7 @@ describe("A-Stock Data Layer (EODHD)", () => {
       console.log(`  Latest: ${new Date(klines[klines.length - 1].timestamp).toISOString().split("T")[0]}, Close: ${klines[klines.length - 1].close}`);
     });
 
-    it("should fetch Shanghai stock klines with full symbol (600519.SHG)", async () => {
+    apiTest("should fetch Shanghai stock klines with full symbol (600519.SHG)", async () => {
       const symbol = "600519.SHG"; // 贵州茅台 (explicit)
       const limit = 5;
       const klines = await getAStockKlines(symbol, limit);
@@ -58,7 +59,7 @@ describe("A-Stock Data Layer (EODHD)", () => {
       console.log(`✓ Fetched ${klines.length} klines for ${symbol}`);
     });
 
-    it("should fetch Shenzhen stock klines with bare code (000001)", async () => {
+    apiTest("should fetch Shenzhen stock klines with bare code (000001)", async () => {
       const symbol = "000001"; // 平安银行
       const limit = 10;
       const klines = await getAStockKlines(symbol, limit);
@@ -71,7 +72,7 @@ describe("A-Stock Data Layer (EODHD)", () => {
       console.log(`  Latest: ${new Date(klines[klines.length - 1].timestamp).toISOString().split("T")[0]}, Close: ${klines[klines.length - 1].close}`);
     });
 
-    it("should fetch Shenzhen stock klines with full symbol (000001.SHE)", async () => {
+    apiTest("should fetch Shenzhen stock klines with full symbol (000001.SHE)", async () => {
       const symbol = "000001.SHE"; // 平安银行 (explicit)
       const limit = 5;
       const klines = await getAStockKlines(symbol, limit);
@@ -96,7 +97,7 @@ describe("A-Stock Data Layer (EODHD)", () => {
   });
 
   describe("getAStockFundamentals", () => {
-    it("should fetch annual fundamentals for Shanghai stock (600519)", async () => {
+    apiTest("should fetch annual fundamentals for Shanghai stock (600519)", async () => {
       const symbol = "600519"; // 贵州茅台
       const period = "annual";
       const limit = 3;
@@ -122,7 +123,7 @@ describe("A-Stock Data Layer (EODHD)", () => {
       });
     });
 
-    it("should fetch quarterly fundamentals for Shenzhen stock (000001)", async () => {
+    apiTest("should fetch quarterly fundamentals for Shenzhen stock (000001)", async () => {
       const symbol = "000001"; // 平安银行
       const period = "quarter";
       const limit = 4;
@@ -142,7 +143,7 @@ describe("A-Stock Data Layer (EODHD)", () => {
       });
     });
 
-    it("should fetch fundamentals with full symbol (600519.SHG)", async () => {
+    apiTest("should fetch fundamentals with full symbol (600519.SHG)", async () => {
       const symbol = "600519.SHG";
       const fundamentals = await getAStockFundamentals(symbol, "annual", 2);
 

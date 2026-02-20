@@ -16,7 +16,9 @@ function getApiKey(): string {
 function getLimitDateRange(limit: number): { from: string; to: string } {
   const now = new Date();
   const to = now.toISOString().split("T")[0];
-  const daysBack = Math.ceil(limit * 1.2);
+  // Use 2.5x buffer to account for weekends, holidays (especially Chinese New Year),
+  // and EODHD data lag. 1.2x was too tight — failed when limit=5 during holiday periods.
+  const daysBack = Math.max(Math.ceil(limit * 2.5), 14);
   const from = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
   const fromStr = from.toISOString().split("T")[0];
   return { from: fromStr, to };

@@ -5,6 +5,7 @@ import { buildCorrelationMatrix } from "../../src/utils/correlation.js";
 import { buildSectorTreemapOption } from "../../src/render/charts/sector-treemap.js";
 import { buildCorrelationMatrixOption } from "../../src/render/charts/correlation-matrix.js";
 import { renderToPNG, renderToHTML } from "../../src/render/engine.js";
+import { apiTest } from "../helpers/api-guard.js";
 
 describe("sector treemap — US stocks", () => {
   it("generates treemap option for US stocks", async () => {
@@ -125,7 +126,7 @@ describe("correlation matrix", () => {
     assert.ok(matrix.matrix[0][1] > 0.3, `BTC-ETH correlation should be positive, got ${matrix.matrix[0][1]}`);
   });
 
-  it("builds cross-market correlation matrix", async () => {
+  apiTest("builds cross-market correlation matrix", async () => {
     const matrix = await buildCorrelationMatrix([
       { symbol: "BTCUSDT", market: "crypto" },
       { symbol: "AAPL", market: "us_stock" },

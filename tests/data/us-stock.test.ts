@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import { getUSStockKlines, getUSStockFundamentals } from "../../src/data/us-stock.js";
+import { apiTest } from "../helpers/api-guard.js";
 
-test("getUSStockKlines - AAPL", async () => {
+apiTest("getUSStockKlines - AAPL", async () => {
   const result = await getUSStockKlines("AAPL", 10);
   
   console.log(`✓ Fetched ${result.length} AAPL klines`);
@@ -31,7 +32,7 @@ test("getUSStockKlines - AAPL", async () => {
   console.log("  ✓ All validations passed");
 });
 
-test("getUSStockKlines - TSLA", async () => {
+apiTest("getUSStockKlines - TSLA", async () => {
   const result = await getUSStockKlines("TSLA", 5);
   
   console.log(`✓ Fetched ${result.length} TSLA klines`);
@@ -40,7 +41,7 @@ test("getUSStockKlines - TSLA", async () => {
   assert.ok(result.length <= 5, "Should respect limit");
 });
 
-test("getUSStockFundamentals - AAPL annual", async () => {
+apiTest("getUSStockFundamentals - AAPL annual", async () => {
   const result = await getUSStockFundamentals("AAPL", "annual", 3);
   
   console.log(`✓ Fetched ${result.length} AAPL annual reports`);
@@ -64,7 +65,7 @@ test("getUSStockFundamentals - AAPL annual", async () => {
   console.log("  ✓ All validations passed");
 });
 
-test("getUSStockFundamentals - MSFT quarterly", async () => {
+apiTest("getUSStockFundamentals - MSFT quarterly", async () => {
   const result = await getUSStockFundamentals("MSFT", "quarter", 2);
   
   console.log(`✓ Fetched ${result.length} MSFT quarterly reports`);
