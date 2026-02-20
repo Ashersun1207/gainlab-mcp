@@ -17,7 +17,7 @@ yellow() { printf "\033[33m⚠ %s\033[0m\n" "$1"; TOTAL_WARNS=$((TOTAL_WARNS+1))
 green()  { printf "\033[32m✔ %s\033[0m\n" "$1"; }
 
 # ── 1. Research 知识库检查 ──
-section "1/7 Research 知识库"
+section "1/9 Research 知识库"
 if [ -f "$RESEARCH/tools/check.sh" ]; then
   bash "$RESEARCH/tools/check.sh" 2>&1 | tail -5
 else
@@ -25,7 +25,7 @@ else
 fi
 
 # ── 2. MCP Server README ↔ 代码检查 ──
-section "2/7 MCP Server README ↔ 代码"
+section "2/9 MCP Server README ↔ 代码"
 if [ -f "$MCP/scripts/check-docs.sh" ]; then
   bash "$MCP/scripts/check-docs.sh" 2>&1 | tail -5
 else
@@ -33,7 +33,7 @@ else
 fi
 
 # ── 3. ARCHITECTURE.md ↔ 代码一致性 ──
-section "3/7 ARCHITECTURE.md 一致性"
+section "3/9 ARCHITECTURE.md 一致性"
 if [ -f "$MCP/ARCHITECTURE.md" ]; then
   # 检查 ARCHITECTURE.md 提到的每个 .ts 文件是否存在
   ARCH_MISSING=0
@@ -68,7 +68,7 @@ else
 fi
 
 # ── 4. 展示页基础检查 ──
-section "4/7 展示页检查"
+section "4/9 展示页检查"
 DEMO="$MCP/docs/index.html"
 if [ -f "$DEMO" ]; then
   # ECharts coord 陷阱：检查是否有数字索引 coord（不含 api.coord 的 custom series）
@@ -104,7 +104,7 @@ else
 fi
 
 # ── 5. PRD 纪律检查 ──
-section "5/7 PRD 纪律检查"
+section "5/9 PRD 纪律检查"
 cd "$MCP" 2>/dev/null
 # 看最近 3 次 commit 是否涉及核心代码
 CORE_CHANGES=$(git log -3 --name-only --pretty=format: 2>/dev/null | grep -E '^(src/tools/|src/render/|src/utils/|docs/index\.html)' | sort -u || true)
@@ -134,7 +134,7 @@ else
 fi
 
 # ── 6. Git 状态 ──
-section "6/8 Git 状态"
+section "6/9 Git 状态"
 APP="/Users/mac/Desktop/卷卷/gainlab-app"
 for repo in "$MCP" "$RESEARCH" "$APP"; do
   name=$(basename "$repo")
@@ -154,7 +154,7 @@ for repo in "$MCP" "$RESEARCH" "$APP"; do
 done
 
 # ── 7. gainlab-app 基础检查 ──
-section "7/8 gainlab-app 检查"
+section "7/9 gainlab-app 检查"
 if [ -d "$APP" ]; then
   # 检查必要文件
   for f in .gitignore README.md ARCHITECTURE.md RULES.md; do
@@ -175,7 +175,7 @@ else
 fi
 
 # ── 8. 同步状态 ──
-section "8/8 文档同步"
+section "8/9 文档同步"
 SYNC_DIR="$WORKSPACE/memory/gainlab-sync"
 SYNC_PAIRS="README.md:gainlab-research-index.md status.md:gainlab-status.md decisions.md:gainlab-decisions-sync.md"
 SYNC_FAIL=0
@@ -215,6 +215,40 @@ for pair in "ARCHITECTURE.md:gainlab-app-architecture.md" "RULES.md:gainlab-app-
     yellow "gainlab-app/$src 未同步到 workspace"
   fi
 done
+
+# ── 9. Worker 代码质量 ──
+section "9/9 Worker 代码质量"
+WORKER="$MCP/worker"
+if [ -d "$WORKER" ]; then
+  # tsc 检查
+  cd "$WORKER"
+  if npx tsc --noEmit 2>&1 | head -5 | grep -q "error"; then
+    red "Worker tsc --noEmit 有类型错误"
+  else
+    green "Worker TypeScript 类型检查通过"
+  fi
+  cd "$MCP"
+
+  # 契约检查
+  if [ -f "$MCP/scripts/check-contract.sh" ]; then
+    if bash "$MCP/scripts/check-contract.sh" > /dev/null 2>&1; then
+      green "前后端契约一致"
+    else
+      red "前后端契约不一致"
+    fi
+  else
+    yellow "check-contract.sh 不存在"
+  fi
+
+  # verify.sh
+  if [ -f "$WORKER/verify.sh" ]; then
+    green "Worker verify.sh 存在"
+  else
+    yellow "Worker verify.sh 缺失"
+  fi
+else
+  yellow "Worker 目录不存在"
+fi
 
 # ── 汇总 ──
 echo ""

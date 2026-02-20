@@ -297,8 +297,24 @@ async function handleSearch(url: URL, env: Env, cors: Record<string, string>): P
         })),
       }, 200, cors);
     } else if (market === 'crypto') {
-      // No search API for crypto, return empty
-      return jsonResponse({ results: [] }, 200, cors);
+      // Bybit V5 instruments — filter by query, USDT pairs only
+      const res = await fetch(
+        'https://api.bybit.com/v5/market/instruments-info?category=spot',
+      );
+      if (!res.ok) return jsonResponse({ results: [] }, 200, cors);
+      const json = await res.json() as {
+        result: { list: Array<{ symbol: string; baseCoin: string; quoteCoin: string; status: string }> };
+      };
+      const q = query.toUpperCase();
+      const matches = (json.result?.list || [])
+        .filter((i) => i.quoteCoin === 'USDT' && i.status === 'Trading' && i.baseCoin.includes(q))
+        .slice(0, 10)
+        .map((i) => ({
+          symbol: i.symbol,
+          name: `${i.baseCoin}/USDT`,
+          exchange: 'Bybit',
+        }));
+      return jsonResponse({ results: matches }, 200, cors);
     }
     return jsonResponse({ results: [] }, 200, cors);
   } catch {
