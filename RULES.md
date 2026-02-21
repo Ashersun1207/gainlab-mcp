@@ -26,6 +26,14 @@ _任何改动前必读。详细通用规则见 gainlab-research/docs/RULES.md。
 7. **部署用 Cloudflare REST API**（不用 wrangler，代理环境下不稳定）
 8. **类型定义在 `worker/src/types.ts`**（Wire Format 契约，前端必须兼容）
 
+## 数据源策略
+
+- **EODHD 是 Worker 主数据源**（US/CN/metal），FMP 是 US fallback
+- `fetchWithFallback()` 自动处理：EODHD 失败 → FMP fallback → 抛错
+- **Bybit** 仅用于 crypto（Binance 封锁 CF Worker IP）
+- **FMP_API_KEY 可选**：没设也不影响 EODHD 正常工作
+- **MCP Server**（非 Worker）仍主用 FMP + EODHD，逻辑独立
+
 ## 前后端契约
 
 Worker 发送的 SSE 事件是 **Wire Format**，前端 `mcpClient.ts` 负责映射为内部类型。

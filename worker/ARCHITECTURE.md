@@ -6,7 +6,7 @@ _GainLab API Proxy — Cloudflare Worker_
 
 ## 职责
 
-1. **REST API 代理** — 5 个 GET 端点，将前端请求路由到上游数据源（Bybit / FMP / EODHD）
+1. **REST API 代理** — 5 个 GET 端点，将前端请求路由到上游数据源（Bybit / EODHD + FMP fallback）
 2. **AI Chat SSE 中间件** — 1 个 POST 端点，将 MiniMax M2.5 的 SSE 流转换为 GainLab 格式，拦截 tool_call 执行后注入 widgetState
 
 ## 端点清单
@@ -59,7 +59,7 @@ _GainLab API Proxy — Cloudflare Worker_
 | market | 上游 | 备注 |
 |---|---|---|
 | `crypto` | Bybit V5 API | Binance 封锁 CF Worker IP |
-| `us` | EODHD | `AAPL.US` 后缀（FMP 已移除，429 限流严重） |
+| `us` | EODHD 主 + FMP fallback | `AAPL.US`，EODHD 失败自动切 FMP |
 | `cn` | EODHD | `.SHG`/`.SHE` 后缀 |
 | `metal` | EODHD | `XAU.COMM` / `XAG.COMM` |
 
@@ -113,4 +113,4 @@ worker/
 
 ---
 
-_Last updated: 2026-02-20 (T7: Worker 架构文档)_
+_Last updated: 2026-02-20 (T7 + EODHD主+FMP fallback双数据源)_
