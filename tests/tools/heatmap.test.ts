@@ -1,6 +1,10 @@
-import { describe, it } from "node:test";
+import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { getUSStockScreener, getCryptoScreener } from "../../src/data/screener.js";
+import { installEodhdMock, removeEodhdMock } from "../helpers/eodhd-mock.js";
+
+before(() => installEodhdMock());
+after(() => removeEodhdMock());
 import { buildCorrelationMatrix } from "../../src/utils/correlation.js";
 import { buildSectorTreemapOption } from "../../src/render/charts/sector-treemap.js";
 import { buildCorrelationMatrixOption } from "../../src/render/charts/correlation-matrix.js";

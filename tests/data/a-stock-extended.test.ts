@@ -1,10 +1,19 @@
-import { describe, it } from "node:test";
+import { describe, it, before, after } from "node:test";
 import assert from "node:assert";
 import {
   getAStockCashFlow,
   getAStockKeyMetrics,
 } from "../../src/data/a-stock.js";
 import { apiTest } from "../helpers/api-guard.js";
+import { installEodhdMock, removeEodhdMock } from "../helpers/eodhd-mock.js";
+
+before(() => {
+  installEodhdMock();
+  if (!process.env.EODHD_API_KEY) {
+    process.env.EODHD_API_KEY = "mock-test-key";
+  }
+});
+after(() => removeEodhdMock());
 
 describe("A-Stock Extended Data", () => {
   apiTest("should get cash flow data for 600519 (Moutai)", async () => {

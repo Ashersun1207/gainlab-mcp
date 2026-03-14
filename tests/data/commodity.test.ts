@@ -1,6 +1,15 @@
-import { test } from "node:test";
+import { test, before, after } from "node:test";
 import assert from "node:assert";
 import { getCommodityKlines } from "../../src/data/commodity.js";
+import { installEodhdMock, removeEodhdMock } from "../helpers/eodhd-mock.js";
+
+before(() => {
+  installEodhdMock();
+  if (!process.env.EODHD_API_KEY) {
+    process.env.EODHD_API_KEY = "mock-test-key";
+  }
+});
+after(() => removeEodhdMock());
 
 test("getCommodityKlines - XAUUSD (Gold)", async () => {
   const result = await getCommodityKlines("XAUUSD", 10);

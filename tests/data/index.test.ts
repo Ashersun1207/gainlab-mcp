@@ -1,7 +1,16 @@
-import { describe, it } from "node:test";
+import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { getKlines, getFundamentals } from "../../src/data/index.js";
 import { apiTest } from "../helpers/api-guard.js";
+import { installEodhdMock, removeEodhdMock } from "../helpers/eodhd-mock.js";
+
+before(() => {
+  installEodhdMock();
+  if (!process.env.EODHD_API_KEY) {
+    process.env.EODHD_API_KEY = "mock-test-key";
+  }
+});
+after(() => removeEodhdMock());
 
 describe("getKlines router", () => {
   it("routes crypto market to Binance", async () => {

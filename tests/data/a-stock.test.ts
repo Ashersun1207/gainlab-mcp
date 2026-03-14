@@ -1,17 +1,19 @@
-import { describe, it, before } from "node:test";
+import { describe, it, before, after } from "node:test";
 import assert from "node:assert";
 import { getAStockKlines, getAStockFundamentals } from "../../src/data/a-stock.js";
 import { apiTest } from "../helpers/api-guard.js";
+import { installEodhdMock, removeEodhdMock } from "../helpers/eodhd-mock.js";
 
 describe("A-Stock Data Layer (EODHD)", () => {
   before(() => {
-    // Verify EODHD_API_KEY is available
+    installEodhdMock();
+    // Ensure env var exists so getApiKey() doesn't throw
     if (!process.env.EODHD_API_KEY) {
-      throw new Error(
-        "EODHD_API_KEY not found. Please set it in ~/.openclaw/.env"
-      );
+      process.env.EODHD_API_KEY = "mock-test-key";
     }
   });
+
+  after(() => removeEodhdMock());
 
   describe("getAStockKlines", () => {
     apiTest("should fetch Shanghai stock klines with bare code (600519)", async () => {
